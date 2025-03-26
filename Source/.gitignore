@@ -1,0 +1,14 @@
+# venv
+.venv
+
+# python generated files
+__pycache__/
+*.egg-info
+*.py[oc]
+build/
+dist/
+wheels/
+
+# rye generated files
+.pytest_cache/
+.ruff_cache/

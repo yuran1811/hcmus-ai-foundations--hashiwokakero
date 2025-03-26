@@ -1,0 +1,80 @@
+\documentclass[a4paper,12pt]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,margin=24mm]{geometry}
+\usepackage[skip=10pt plus1pt, indent=20pt]{parskip}
+\usepackage[colorlinks=true,allcolors=blue,urlcolor=magenta]{hyperref}
+
+\usepackage{caption}
+\usepackage{indentfirst,setspace,subcaption}
+\usepackage{amsmath,amssymb,graphicx,xcolor,url}
+\usepackage{fancyhdr,tocbasic,titlesec,minted,listings}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\renewcommand{\thesection}{\arabic{section}}
+
+\input{cmd/cmd}
+
+% Code highlighting
+\usemintedstyle{one-dark}
+\setminted{frame=lines,
+  framesep=2mm,
+  baselinestretch=1.2,
+  fontsize=\footnotesize,
+  linenos,
+  breakanywhere,
+  breaklines,
+  mathescape
+}
+
+% Header and footer styling
+\pagestyle{fancy}
+\setlength{\headheight}{18pt}
+\fancyhf{}
+\fancyhead[R]{\nouppercase\rightmark\hfill~Project 02: Hashiwokakero}
+\fancyfoot[C]{\hfill\thepage\hfill}
+
+% TOC styling
+\DeclareTOCStyleEntry[
+  indent=12pt,
+  level=1
+]{largetocline}{section}
+
+% Title page data
+\title{Project 02: Hashiwokakero}
+\author{\begin{tabular}{r c}
+  Ngo Nguyen The Khoa & 23127065\\
+  Bui Minh Duy       & 23127040\\
+  Nguyen Le Ho Anh Khoa      & 23127211\\
+\end{tabular}}
+\date{April 11, 2025}
+
+\begin{document}
+\input{envs/code}
+
+% Title page and TOC
+\input{pages/title_page}
+\tableofcontents\thispagestyle{empty}
+
+% Report contents
+\pagebreak
+\input{pages/GroupInfo.tex}
+\input{pages/ProjectInfo.tex}
+
+\pagebreak
+\input{pages/TaskAssignment.tex}
+\input{pages/Evaluation.tex}
+
+\pagebreak
+\section{Algorithms' Implementations}
+\input{pages/Astar.tex}
+\input{pages/Comparison.tex}
+
+% References
+\pagebreak
+\section{References}
+\begin{enumerate}
+  \item \href{https://rye.astral.sh/guide/}{Rye documentation}
+\end{enumerate}
+\end{document}

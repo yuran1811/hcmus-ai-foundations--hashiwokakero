@@ -1,0 +1,39 @@
+[project]
+name = "hashiwokakero"
+version = "0.1.0"
+description = "HCMUS AI Foundations -- Hashiwokakero Project"
+authors = [
+	{ name = "yuran1811", email = "trieuvanbd123@gmail.com" },
+	{ name = "KhoaNguyen-HCMUS", email = "anhkhoa515.dev@gmail.com" },
+	{ name = "callmezuy", email = "bmduy23@clc.fitus.edu.vn" },
+]
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+classifiers = ["Private :: Do Not Upload"]
+dependencies = ["python-sat>=1.8.dev16"]
+
+[project.scripts]
+"dev" = "hashiwokakero:dev"
+"main" = "hashiwokakero:main"
+"solve" = "hashiwokakero:solve"
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[tool.ruff.lint]
+extend-select = ["W", "E"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hashiwokakero"]
+
+
+[dependency-groups]
+dev = ["pytest>=8.3.5"]
+lint = ["ruff>=0.11.2"]
