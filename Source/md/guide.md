@@ -12,25 +12,13 @@
 uv sync
 ```
 
-or
-
-```bash
-pip install -r requirements.txt
-```
-
-**Running the Project**
-
-```bash
-uv run dev
-```
-
 **Testing**
 
 ```bash
 uv run pytest
 ```
 
-**Run project**
+**Run Solver**
 
 ```bash
 usage: hashiwokakero [-h] [-v] [-a {pysat,astar,backtrack,brute}] [-i INPUT]
@@ -47,7 +35,15 @@ options:
 ```
 
 ```bash
-uv run main -a pysat -i "./data/input/7x7/input-01.txt"
+uv run main -a pysat -i "./data/input/20x20/input-04.txt"
+# or
+uv run main -a astar -i "./data/input/13x13/input-05.txt"
+```
+
+**Run Benchmark**
+
+```bash
+uv run src/benchmark.py
 ```
 
 **Lint**
