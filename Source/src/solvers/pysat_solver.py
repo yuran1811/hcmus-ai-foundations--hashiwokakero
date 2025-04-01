@@ -19,12 +19,13 @@ def solve_with_pysat(grid: Grid):
                         grid, pbenc, cardenc, use_pysat=True
                     )
                     with Glucose42(bootstrap_with=cnf) as solver:
-                        # print(f"pbenc: {pbenc}, cardenc: {cardenc}")
+                        # print(f"solve with\n  pbenc: {pbenc}\n  cardenc: {cardenc}")
                         while solver.solve():
-                            # print("> solving...")
                             model = solver.get_model()
                             num_clauses = solver.nof_clauses()
-                            if not model or (num_clauses and num_clauses > 8000):
+                            if not model or (
+                                num_clauses and num_clauses > len(cnf.clauses)
+                            ):
                                 break
 
                             if validate_solution(islands, edge_vars, model):
@@ -32,17 +33,15 @@ def solve_with_pysat(grid: Grid):
 
                             solver.add_clause([-x for x in model])
                 except KeyboardInterrupt:
-                    print("[interrupted]")
-                    continue
-                except Exception as _:
-                    # print(f"[error]: {_}")
+                    print("> terminating...")
+                    return [], []
+                except Exception:
                     continue
 
         return [], []
 
     sol, islands = solve_hashi()
     if not sol or not check_hashi(islands, sol):
-        print("> unsolvable.")
         return ""
 
     return generate_output(grid, islands, sol)

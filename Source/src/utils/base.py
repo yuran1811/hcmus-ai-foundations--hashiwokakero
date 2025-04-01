@@ -19,6 +19,15 @@ def time_convert(time: float) -> str:
     return f"{time:.2f} s"
 
 
+def byte_convert(num: float) -> str:
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if num < 1024:
+            return f"{num:.2f} {unit}"
+        num /= 1024.0
+
+    return f"{num:.2f} PB"
+
+
 def get_project_toml_data() -> dict:
     try:
         with open(os.path.join(ROOT_DIR, "pyproject.toml"), "rb") as f:
@@ -71,7 +80,8 @@ def generate_output(grid: Grid, islands: list[Island], sol: list[tuple[int, int,
 
 
 def prettify_output(output: list[list[str]]):
-    [print(" ".join(x)) for x in output]
+    if output:
+        [print(" ".join(x)) for x in output]
 
 
 def get_islands(grid: Grid):
@@ -178,6 +188,65 @@ def extract_solution(model: list[int], edge_vars: dict[PairII, PairII]):
     return solution
 
 
+def encode_pbequal(lits: list[int], weights: list[int], k: int, top_id: int):
+    def next_var():
+        nonlocal top_id
+        top_id += 1
+        return top_id
+
+    clauses: list[list[int]] = []
+
+    n = len(lits)
+    if n == 0:
+        return [[1], [-1]] if k else []
+
+    s = [{} for _ in range(n + 1)]
+    s[0][0] = next_var()
+    clauses.append([s[0][0]])
+
+    for i in range(1, n + 1):
+        x_i = lits[i - 1]
+        a_i = weights[i - 1]
+        s_prev = s[i - 1]
+        s_curr = {}
+
+        # Iterate over achievable sums from the previous step
+        for prev_sum in s_prev:
+            aux_prev = s_prev[prev_sum]
+
+            # Case 1: x_i is False (sum remains prev_sum)
+            if prev_sum not in s_curr:
+                s_curr[prev_sum] = next_var()
+            aux_false = s_curr[prev_sum]
+            clauses.append([-aux_prev, x_i, aux_false])  # ~aux_prev → (x_i ∨ aux_false)
+
+            # Case 2: x_i is True (sum increases by a_i)
+            new_sum = prev_sum + a_i
+            if new_sum not in s_curr:
+                s_curr[new_sum] = next_var()
+            aux_true = s_curr[new_sum]
+            clauses.append([-aux_prev, -x_i, aux_true])  # ~aux_prev → (~x_i ∨ aux_true)
+
+        for sum_val in s_curr:
+            for other_sum in s_curr:
+                if sum_val != other_sum:
+                    clauses.append([-s_curr[sum_val], -s_curr[other_sum]])
+        s[i] = s_curr
+
+    # Final constraint: sum after processing all variables must equal k
+    if k not in s[n]:
+        return [[1], [-1]]  # Unsatisfiable if k is unreachable
+
+    clauses.append([s[n][k]])  # Enforce final sum = k
+
+    # Ensure no other sums are active in the final step
+    for sum_val in s[n]:
+        if sum_val != k:
+            clauses.append([-s[n][sum_val]])
+
+    return clauses
+
+
 def encode_hashi(
     grid: Grid,
     pbenc: int = PBEncType.bdd,
@@ -215,21 +284,23 @@ def encode_hashi(
     # Degree constraints
     for idx, _, _, degree in islands:
         lits = island_incident[idx]
+        weights = [[2, 1][x & 1] for x in lits]
         if not lits and degree:
-            print(f"[unsatisfiable]: no edges for island {idx}")
-            cnf.append([])  # Unsatisfiable
+            print(f"[unsat]: no edges for island {idx}")
+            cnf.append([])
             continue
 
         if use_pysat:
             clauses = PBEnc.equals(
                 lits,
-                [[2, 1][x & 1] for x in lits],
+                weights,
                 degree,
                 var_counter,
                 encoding=pbenc,
             ).clauses
         else:
-            clauses = []
+            clauses = encode_pbequal(lits, weights, degree, var_counter)
+
         cnf.extend(clauses)
         var_counter = max(
             var_counter,

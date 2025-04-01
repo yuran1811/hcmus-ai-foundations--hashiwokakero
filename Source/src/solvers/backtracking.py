@@ -131,7 +131,6 @@ def solve_with_backtracking(grid: Grid):
 
     model = [k for k, v in assignment.items() if v]
     if not model:
-        print("> unsolvable.")
         return ""
 
     return ""

@@ -5,6 +5,7 @@ from solvers import (
     solve_with_pysat,
 )
 from utils import (
+    encode_pbequal,
     get_input_path,
     get_project_toml_data,
     parse_args,
@@ -17,16 +18,28 @@ from utils import (
 
 
 def dev():
-    pass
+    from pysat.solvers import Glucose42
+
+    literals = [1, 2, 3, 4]
+    weights = [1, 2, 3, 4]
+    k = 5
+
+    max_var = literals[-1]
+    clauses = encode_pbequal(literals, weights, k, max_var)
+
+    with Glucose42(bootstrap_with=clauses) as solver:
+        if solver.solve():
+            model = solver.get_model()
+            print("Solution found:", model[:max_var] if model else [])
+        else:
+            print("No solution exists")
 
 
 def solve(solver, file_path: str = get_input_path(7, 1)):
     try:
-        output = solver(parse_input(file_path))
-        prettify_output(output)
+        prettify_output(solver(parse_input(file_path)))
     except Exception as _:
-        print(f"[error]: {_}")
-        return
+        print(f"[error]::{_}")
 
 
 def main() -> int:

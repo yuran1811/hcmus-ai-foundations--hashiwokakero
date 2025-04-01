@@ -1,10 +1,12 @@
 from .args import parse_args, with_algo, with_input_path, with_version_arg
 from .base import (
+    byte_convert,
     check_hashi,
     edge_orientation,
     edge_span,
     edges_cross,
     encode_hashi,
+    encode_pbequal,
     extract_solution,
     generate_output,
     get_input_path,
@@ -25,11 +27,13 @@ __all__ = [
     "with_input_path",
     "with_version_arg",
     #
+    "byte_convert",
     "check_hashi",
     "edge_orientation",
     "edge_span",
     "edges_cross",
     "encode_hashi",
+    "encode_pbequal",
     "extract_solution",
     "generate_output",
     "get_input_path",

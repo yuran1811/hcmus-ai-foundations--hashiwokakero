@@ -5,7 +5,7 @@ from typing import Callable
 
 from __types import Grid
 from solvers import solve_with_astar, solve_with_bruteforce, solve_with_pysat
-from utils import get_input_path, parse_input, time_convert
+from utils import byte_convert, get_input_path, parse_input, time_convert
 
 
 def profile(func: Callable):
@@ -43,17 +43,23 @@ if __name__ == "__main__":
     ]
 
     for name, grid in grids:
-        print(f"[testing] {name}:")
+        print(f"+ testing: {name}")
 
         # PySAT
-        solved_pysat, t, _, _ = benchmark(solve_with_pysat, grid)
-        print(f"PySAT: {time_convert(t)} | Solved: {solved_pysat}")
+        solved_pysat, t, _, peak_mem = benchmark(solve_with_pysat, grid)
+        print(
+            f"PySAT: {time_convert(t)}, {byte_convert(peak_mem)} | Solved: {solved_pysat}"
+        )
 
         # A*
-        solved_astar, t, _, _ = benchmark(solve_with_astar, grid)
-        print(f"A*: {time_convert(t)} | Solved: {solved_astar}")
+        solved_astar, t, _, peak_mem = benchmark(solve_with_astar, grid)
+        print(
+            f"A*: {time_convert(t)}, {byte_convert(peak_mem)} | Solved: {solved_astar}"
+        )
 
         # Backtracking (only for small grids)
         if name == "7x7":
-            solved_bt, t, _, _ = benchmark(solve_with_bruteforce, grid)
-            print(f"Backtracking: {time_convert(t)} | Solved: {solved_bt}")
+            solved_bt, t, _, peak_mem = benchmark(solve_with_bruteforce, grid)
+            print(
+                f"Backtracking: {time_convert(t)}, {byte_convert(peak_mem)} | Solved: {solved_bt}"
+            )
