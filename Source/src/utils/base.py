@@ -1,143 +1,263 @@
-from typing import Dict, List, Tuple
+import os
+import re
+import tomllib
 
-from models import Bridge, Island
+from pysat.card import CardEnc
+from pysat.card import EncType as CardEncType
+from pysat.formula import CNF
+from pysat.pb import EncType as PBEncType
+from pysat.pb import PBEnc
+
+from __types import Edge, EdgeExtend, Grid, Incident, Island, PairII
+from classes import DSU
+from constants.path import INP_DIR, ROOT_DIR
 
 
-def parse_input(file_path: str) -> List[List[int]]:
+def time_convert(time: float) -> str:
+    if time < 1:
+        return f"{time * 1000:.2f} ms"
+    return f"{time:.2f} s"
+
+
+def get_project_toml_data() -> dict:
+    try:
+        with open(os.path.join(ROOT_DIR, "pyproject.toml"), "rb") as f:
+            return tomllib.load(f)["project"]
+    except FileNotFoundError:
+        return {}
+
+
+def get_input_path(size: int = 7, idx: int = 1) -> str:
+    if size not in [7, 9, 11, 13, 17, 20] or idx < 1:
+        raise ValueError(
+            f"Invalid input size {size} or index {idx}. Size must be one of [7, 9, 11, 13, 17, 20] and index must be >= 1."
+        )
+
+    return os.path.join(INP_DIR, f"{size}x{size}", f"input-{idx:02d}.txt")
+
+
+def in_bounds(r: int, c: int, nrows: int, ncols: int):
+    return 0 <= r < nrows and 0 <= c < ncols
+
+
+def parse_input(file_path: str):
     with open(file_path, "r") as f:
-        return [[int(num) for num in line.strip().split(", ")] for line in f]
+        lines = f.read().strip().split("\n")
+        grid: Grid = []
+        for line in lines:
+            line = re.sub(r"\s+", "", line)  # Correctly remove all whitespace
+            row = list(map(int, line.split(",")))
+            grid.append(row)
+        return grid
 
 
-def format_output(
-    grid: List[List[int]], solution: Dict[Tuple[Island, Island], int]
-) -> List[List[str]]:
-    rows = len(grid)
-    cols = len(grid[0])
-    print(rows, cols)
-    output = [[str(cell) if cell > 0 else "0" for cell in row] for row in grid]
+def generate_output(grid: Grid, islands: list[Island], sol: list[tuple[int, int, int]]):
+    output = [["0" if cell == 0 else str(cell) for cell in row] for row in grid]
+    for i, j, count in sol:
+        a = next((r, c, deg) for (idx, r, c, deg) in islands if idx == i)
+        b = next((r, c, deg) for (idx, r, c, deg) in islands if idx == j)
 
-    for (a, b), count in solution.items():
-        if a.x == b.x:  # Horizontal bridge
-            for y in range(min(a.y, b.y) + 1, max(a.y, b.y)):
-                symbol = "-" if count == 1 else "="
-                output[a.x][y] = symbol
-        else:  # Vertical bridge
-            for x in range(min(a.x, b.x) + 1, max(a.x, b.x)):
-                symbol = "|" if count == 1 else "$"
-                output[x][a.y] = symbol
+        if a[0] == b[0]:  # Horizontal
+            y_min, y_max = sorted([a[1], b[1]])
+            symbol = "-" if count == 1 else "="
+            for y in range(y_min + 1, y_max):
+                output[a[0]][y] = symbol
+        else:  # Vertical
+            x_min, x_max = sorted([a[0], b[0]])
+            symbol = "|" if count == 1 else "$"
+            for x in range(x_min + 1, x_max):
+                output[x][a[1]] = symbol
     return output
 
 
-def identify_islands(grid: List[List[int]]) -> List[Island]:
-    islands = []
-    for i, row in enumerate(grid):
-        for j, num in enumerate(row):
-            if num > 0:
-                islands.append(Island(x=i, y=j, num=num))
+def prettify_output(output: list[list[str]]):
+    [print(" ".join(x)) for x in output]
+
+
+def get_islands(grid: Grid):
+    islands: list[Island] = []
+    for r, row in enumerate(grid):
+        for c, _ in enumerate(row):
+            if _:
+                islands.append((len(islands), r, c, _))
     return islands
 
 
-def get_adjacent_islands(
-    island: Island, all_islands: List[Island], grid: List[List[int]]
-) -> List[Island]:
-    adjacent = []
-    # Check left
-    for y in range(island.y - 1, -1, -1):
-        cell = grid[island.x][y]
-        if cell > 0:
-            adj = next((i for i in all_islands if i.x == island.x and i.y == y), None)
-            if adj:
-                adjacent.append(adj)
-                break
-    # Check right, up, down similarly...
-    return adjacent
+def potential_edges(grid: Grid, islands: list[Island]):
+    nrows, ncols = len(grid), len(grid[0])
+    island_from_pos = {(r, c): idx for (idx, r, c, _) in islands}
+
+    edges: dict[PairII, Edge] = {}
+    directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+    for idx, r, c, _ in islands:
+        for dr, dc in directions:
+            rr, cc = r + dr, c + dc
+
+            while in_bounds(rr, cc, nrows, ncols):
+                if grid[rr][cc]:
+                    other_idx = island_from_pos.get((rr, cc))
+                    if other_idx and other_idx != idx:
+                        key = (min(idx, other_idx), max(idx, other_idx))
+                        if key not in edges:
+                            edges[key] = ((r, c), (rr, cc))
+                    break
+
+                rr += dr
+                cc += dc
+    return edges
 
 
-def is_fully_connected(
-    bridges: Dict[Tuple[Island, Island], int], islands: List[Island]
-) -> bool:
-    if not bridges:
-        return False
-    visited = set()
-    start = next(iter(bridges.keys()))[0]
-    stack = [start]
-
-    while stack:
-        current = stack.pop()
-        if current in visited:
-            continue
-        visited.add(current)
-        for (a, b), count in bridges.items():
-            if a == current and b not in visited:
-                stack.append(b)
-            elif b == current and a not in visited:
-                stack.append(a)
-    return len(visited) == len(islands)
+def edge_orientation(edge: EdgeExtend):
+    (_, _, (r1, c1), (r2, c2)) = edge
+    if r1 == r2:
+        return "h"
+    if c1 == c2:
+        return "v"
+    return "other"
 
 
-def is_valid_bridge(
-    a: Island,
-    b: Island,
-    existing_bridges: Dict[Tuple[Island, Island], int],
-    grid: List[List[int]],
-) -> bool:
-    # Check if islands are aligned horizontally or vertically
-    if a.x != b.x and a.y != b.y:
+def edge_span(edge: EdgeExtend):
+    (_, _, (r1, c1), (r2, c2)) = edge
+    return (min(r1, r2), max(r1, r2), min(c1, c2), max(c1, c2))
+
+
+def edges_cross(e1: EdgeExtend, e2: EdgeExtend):
+    if e1[0] == e2[0] or e1[0] == e2[1] or e1[1] == e2[0] or e1[1] == e2[1]:
         return False
 
-    # Check for intermediate islands/bridges
-    if a.x == b.x:  # Horizontal bridge
-        min_y, max_y = sorted([a.y, b.y])
-        for y in range(min_y + 1, max_y):
-            if grid[a.x][y] != 0:  # Blocked by island
-                return False
-            # Check for existing vertical bridges crossing this path
-            for (other_a, other_b), count in existing_bridges.items():
-                if other_a.y == y or other_b.y == y:
-                    return False
-    else:  # Vertical bridge
-        min_x, max_x = sorted([a.x, b.x])
-        for x in range(min_x + 1, max_x):
-            if grid[x][a.y] != 0:  # Blocked by island
-                return False
-            # Check for existing horizontal bridges crossing this path
-            for (other_a, other_b), count in existing_bridges.items():
-                if other_a.x == x or other_b.x == x:
-                    return False
+    o1 = edge_orientation(e1)
+    o2 = edge_orientation(e2)
+    if {o1, o2} != {"h", "v"}:
+        return False
+
+    if o1 == "v":
+        e1, e2 = e2, e1
+
+    e1_span = edge_span(e1)
+    e2_span = edge_span(e2)
+    r = e1_span[0]  # row of the horizontal edge
+    c = e2_span[2]  # column of the vertical edge
+    cmin, cmax = e1_span[2], e1_span[3]
+    rmin, rmax = e2_span[0], e2_span[1]
+    return (rmin < r < rmax) and (cmin < c < cmax)
+
+
+def check_hashi(islands: list[Island], sol: list[tuple[int, int, int]]):
+    mst = DSU(len(islands))
+
+    for i, j, _ in sol:
+        mst.merge(i, j)
+
+    root = mst.root(0)
+    for i in range(1, len(islands)):
+        if mst.root(i) != root:
+            return False
 
     return True
 
 
-def is_crossing(h_bridge: Bridge, v_bridge: Bridge) -> bool:
-    # Horizontal bridge spans (x, y1) to (x, y2)
-    hx = h_bridge.start.x
-    hy1, hy2 = sorted([h_bridge.start.y, h_bridge.end.y])
-
-    # Vertical bridge spans (x1, y) to (x2, y)
-    vy = v_bridge.start.y
-    vx1, vx2 = sorted([v_bridge.start.x, v_bridge.end.x])
-
-    # Check if bridges intersect at (hx, vy)
-    return (hy1 <= vy <= hy2) and (vx1 <= hx <= vx2)
+def validate_solution(
+    islands: list[Island], edge_vars: dict[PairII, PairII], model: list[int]
+):
+    sol = extract_solution(model, edge_vars)
+    return check_hashi(islands, sol)
 
 
-def count_connected_components(
-    bridges: Dict[Tuple[Island, Island], int], islands: List[Island]
-) -> int:
-    visited = set()
-    components = 0
-    for island in islands:
-        if island not in visited:
-            stack = [island]
-            components += 1
-            while stack:
-                current = stack.pop()
-                if current in visited:
-                    continue
-                visited.add(current)
-                for (a, b), _ in bridges.items():
-                    if a == current and b not in visited:
-                        stack.append(b)
-                    elif b == current and a not in visited:
-                        stack.append(a)
-    return components
+def extract_solution(model: list[int], edge_vars: dict[PairII, PairII]):
+    solution: list[tuple[int, int, int]] = []
+
+    model = [_ for _ in model if _ > 0]
+    for (i, j), (vx, vd) in edge_vars.items():
+        use_x = vx in model
+        use_d = vd in model
+
+        count = (use_x or use_d) + use_d
+        if count > 0:
+            solution.append((i, j, count))
+
+    return solution
+
+
+def encode_hashi(
+    grid: Grid,
+    pbenc: int = PBEncType.bdd,
+    cardenc: int = CardEncType.mtotalizer,
+    *,
+    use_pysat: bool = False,
+):
+    islands = get_islands(grid)
+    n_islands = len(islands)
+
+    island_incident: Incident = {idx: [] for idx in range(n_islands)}
+    pot_edges = potential_edges(grid, islands)
+    edge_vars: dict[PairII, PairII] = {}
+
+    cnf = CNF()
+    var_counter = 1
+
+    """[[Phase 1]]"""
+    # Add variables for edges (vx: single bridge, vd: double bridge)
+    for edge in pot_edges:
+        edge_vars[edge] = (var_counter, var_counter + 1)
+        var_counter += 2
+    max_edge_vars_counter = var_counter
+
+    # At most one bridge type per edge (can be 0 when not using the edge)
+    for vx, vd in edge_vars.values():
+        cnf.append([-vx, -vd])
+
+    """[[Phase 2]]"""
+    # Populate incident edges (generate the adj list for each island)
+    for (i, j), (vx, vd) in edge_vars.items():
+        island_incident[i].extend([vx, vd])
+        island_incident[j].extend([vx, vd])
+
+    # Degree constraints
+    for idx, _, _, degree in islands:
+        lits = island_incident[idx]
+        if not lits and degree:
+            print(f"[unsatisfiable]: no edges for island {idx}")
+            cnf.append([])  # Unsatisfiable
+            continue
+
+        if use_pysat:
+            clauses = PBEnc.equals(
+                lits,
+                [[2, 1][x & 1] for x in lits],
+                degree,
+                var_counter,
+                encoding=pbenc,
+            ).clauses
+        else:
+            clauses = []
+        cnf.extend(clauses)
+        var_counter = max(
+            var_counter,
+            max(abs(_) if _ else 1 for c in clauses for _ in c) if clauses else 1,
+        )
+
+    """[[Phase 3]]"""
+    # Cross-handling (no crossing bridges)
+    edges_list = [(*k, *v) for k, v in pot_edges.items()]
+    for i in range(len(edges_list)):
+        for j in range(i + 1, len(edges_list)):
+            ei, ej = edges_list[i], edges_list[j]
+            if edges_cross(ei, ej):
+                (vx1, vd1), (vx2, vd2) = edge_vars[ei[:2]], edge_vars[ej[:2]]
+                for v1, v2 in [(vx1, vx2), (vx1, vd2), (vd1, vx2), (vd1, vd2)]:
+                    cnf.append([-v1, -v2])
+
+    """[[Phase 4]]"""
+    # At least one bridge per island => at least n-1 edges
+    if use_pysat:
+        _ = CardEnc.atleast(
+            [x for x in range(1, max_edge_vars_counter)],
+            bound=n_islands - 1,
+            top_id=var_counter,
+            encoding=cardenc,
+        )
+        # cnf.extend(_)
+    else:
+        pass
+
+    return cnf, edge_vars, islands, var_counter
