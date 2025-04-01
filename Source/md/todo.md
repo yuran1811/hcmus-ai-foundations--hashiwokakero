@@ -1,5 +1,7 @@
 # Todos
 
+- [x] Formulate CNF
+- [x] Generate CNF
 - [ ] Task
 
 ## Assessment
@@ -8,7 +10,10 @@
 
 ## Algo
 
-- [ ] Task
+- [x] PySAT
+- [ ] A\*
+- [ ] Backtracking
+- [ ] Bruteforce
 
 ## Report
 

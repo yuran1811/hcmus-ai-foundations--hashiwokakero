@@ -30,6 +30,26 @@ uv run dev
 uv run pytest
 ```
 
+**Run project**
+
+```bash
+usage: hashiwokakero [-h] [-v] [-a {pysat,astar,backtrack,brute}] [-i INPUT]
+
+HCMUS AI Foundations -- Hashiwokakero Project
+
+options:
+  -h, --help            show this help message and exit
+  -v, --version         Version
+  -a {pysat,astar,backtrack,brute}, --algo {pysat,astar,backtrack,brute}
+                        Choose which algo will be used
+  -i INPUT, --input INPUT
+                        Path to the input file
+```
+
+```bash
+uv run main -a pysat -i "./data/input/7x7/input-01.txt"
+```
+
 **Lint**
 
 ```bash
