@@ -16,7 +16,7 @@ name = "hashiwokakero"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "python-sat" },
+    { name = "python-sat", extra = ["pblib"] },
 ]
 
 [package.dev-dependencies]
@@ -28,7 +28,7 @@ lint = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "python-sat", specifier = ">=1.8.dev16" }]
+requires-dist = [{ name = "python-sat", extras = ["pblib"], specifier = ">=1.8.dev16" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8.3.5" }]
@@ -62,6 +62,12 @@ wheels = [
 ]
 
 [[package]]
+name = "pypblib"
+version = "0.0.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/f6/967cc8b9ea80c2a8e00913225de46d435ef441243ad1dd0a57935cc1d863/pypblib-0.0.4.tar.gz", hash = "sha256:71dd930bf177ca38d6eeb473702d05df07e11f20382db0c766465297eaf49062", size = 74033 }
+
+[[package]]
 name = "pytest"
 version = "8.3.5"
 source = { registry = "https://pypi.org/simple" }
@@ -93,6 +99,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/56/66/dce6c2f334133cb011c967c8a491449171922ad2ac3de55f2743f892fe47/python_sat-1.8.dev16-cp312-cp312-win_amd64.whl", hash = "sha256:ee202f677419fb1d9a1c94465116a22f32034038a657ef2113487334c8d6a706", size = 1288800 },
     { url = "https://files.pythonhosted.org/packages/ab/9c/32bfcffb36dd8c5384b01f33c72a3958d249d44626d8278b1995f57ec043/python_sat-1.8.dev16-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:747d544d946d6c3277d8ba137fcc75c4be9545fff1a257488908e2114e5b01eb", size = 1629375 },
     { url = "https://files.pythonhosted.org/packages/c3/08/13c2d3422c6c258d598fab730dc06e8e182b4eab74720cde51452627ea8e/python_sat-1.8.dev16-cp313-cp313-win_amd64.whl", hash = "sha256:31fdcaf51ec3a5891a1ebafc92e2df1590b2d07a9f8b7b3eb8982e5fa6be21b2", size = 1288817 },
+]
+
+[package.optional-dependencies]
+pblib = [
+    { name = "pypblib" },
 ]
 
 [[package]]

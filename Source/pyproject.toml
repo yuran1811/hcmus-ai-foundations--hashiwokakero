@@ -11,12 +11,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 classifiers = ["Private :: Do Not Upload"]
-dependencies = ["python-sat>=1.8.dev16"]
+dependencies = ["python-sat[pblib]>=1.8.dev16"]
 
 [project.scripts]
 "dev" = "hashiwokakero:dev"
 "main" = "hashiwokakero:main"
-"solve" = "hashiwokakero:solve"
 
 
 [build-system]
