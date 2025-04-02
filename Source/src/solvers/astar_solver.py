@@ -6,174 +6,206 @@ from utils import (
     generate_output,
     validate_solution,
 )
-import itertools 
 import heapq
-import math
+import traceback
 
 
-def solve_with_astar(grid: Grid): # Đổi tên hàm
+def compute_heuristic(cnf, assignment):
     """
-    Giải Hashi bằng cách encode thành CNF và giải CNF bằng A* search,
-    giữ nguyên coding style.
+    Compute the heuristic value for a given partial assignment.
+    The heuristic is defined as the number of clauses that have all literals
+    assigned but are not satisfied.
+    
+    :param cnf: CNF object with a 'clauses' attribute.
+    :param assignment: Dictionary mapping variable to its boolean value.
+    :return: Heuristic value as an integer.
     """
-    def solve_hashi():
-        """
-        Hàm nội bộ: Encode Hashi, chạy A* để tìm model CNF, validate/extract.
-        """
-        # === Các hàm phụ trợ cho A* trên CNF ===
-
-        def _get_variables_from_cnf(cnf_clauses):
-            """Lấy danh sách các biến duy nhất (dương) từ các mệnh đề CNF."""
-            variables: Set[Variable] = set()
-            for clause in cnf_clauses:
-                for literal in clause:
-                    variables.add(abs(literal))
-            return sorted(list(variables))
-
-        def _calculate_heuristic(assignment, cnf_clauses):
-            """
-            Heuristic h(n): Đếm số mệnh đề CHƯA được thỏa mãn bởi assignment hiện tại.
-            Một mệnh đề chưa được thỏa mãn nếu không có literal nào đúng.
-            """
-            unsatisfied_count = 0
-            for clause in cnf_clauses:
-                is_satisfied = False
-                all_literals_assigned_false = True 
-                for literal in clause:
-                    if literal in assignment: 
-                        is_satisfied = True
-                        break
-                    elif -literal in assignment:
-                        continue 
-                    else: 
-                        all_literals_assigned_false = False
-
-                if not is_satisfied:
-                    unsatisfied_count += 1
-
-            return unsatisfied_count
-
-        def _check_full_assignment_sat(assignment, all_vars, cnf_clauses):
-             """Kiểm tra xem một assignment ĐẦY ĐỦ có thỏa mãn CNF không."""
-             if not all(var in assignment or -var in assignment for var in all_vars):
-                 return False # Not a full assignment
-
-             for clause in cnf_clauses:
-                 satisfied = False
-                 for literal in clause:
-                     if literal in assignment:
-                         satisfied = True
-                         break
-                 if not satisfied:
-                     return False 
-             return True 
-
-        try:
-
-            cnf_clauses: List[Clause]
-            if hasattr(cnf_obj, 'clauses'):
-                cnf_clauses = cnf_obj.clauses
-            elif isinstance(cnf_obj, list):
-                cnf_clauses = cnf_obj
+    h = 0
+    for clause in cnf.clauses:
+        all_assigned = True
+        clause_satisfied = False
+        for lit in clause:
+            var = abs(lit)
+            if var not in assignment:
+                all_assigned = False
+                break
             else:
-                print("Error: Unexpected CNF format from encode_hashi.")
-                return [],[]
-
-            if not islands: return [], [] 
-            if not cnf_clauses and islands:
-                 if check_hashi(islands, []): return [], islands
-                 else: return [], []
-
-            all_variables = set(_get_variables_from_cnf(cnf_clauses))
-            if not all_variables and not cnf_clauses: 
-                 if check_hashi(islands, []): return [], islands
-                 else: return [], [] 
+                val = assignment[var]
+                if (lit > 0 and val) or (lit < 0 and not val):
+                    clause_satisfied = True
+                    break
+        if all_assigned and not clause_satisfied:
+            h += 1
+    return h
 
 
-            print(f"A* on CNF: {len(all_variables)} variables, {len(cnf_clauses)} clauses.")
+def is_clause_violated(clause, assignment):
+    """
+    Check whether a clause is violated by the current assignment.
+    A clause is considered violated if all of its variables are assigned
+    and none of its literals evaluates to True.
+    
+    :param clause: List of integers representing the clause's literals.
+    :param assignment: Current assignment dictionary.
+    :return: True if clause is violated, False otherwise.
+    """
+    all_assigned = True
+    clause_satisfied = False
+    for lit in clause:
+        var = abs(lit)
+        if var not in assignment:
+            all_assigned = False
+            break
+        else:
+            val = assignment[var]
+            if (lit > 0 and val) or (lit < 0 and not val):
+                clause_satisfied = True
+                break
+    return all_assigned and not clause_satisfied
 
-            # Initial State
-            initial_assignment: PartialAssignment = frozenset()
-            initial_unassigned: FrozenSet[Variable] = frozenset(all_variables)
-            start_state: State = (initial_assignment, initial_unassigned)
 
-            # Priority Queue: (f_cost, g_cost, state)
-            initial_h = _calculate_heuristic(initial_assignment, cnf_clauses)
-            open_set = [(initial_h, 0, start_state)] # f = g(0) + h
-            heapq.heapify(open_set)
+def is_complete_assignment(assignment, variables):
+    """
+    Check if the assignment is complete (i.e., all variables have been assigned).
+    
+    :param assignment: Current assignment dictionary.
+    :param variables: List of all variables.
+    :return: True if complete, False otherwise.
+    """
+    return len(assignment) == len(variables)
 
-            g_score: Dict[State, int] = {start_state: 0}
 
-        except Exception as e:
-            import traceback
-            print(f"Error during A* initialization or encoding: {e}")
-            print(traceback.format_exc())
-            return [], []
+def check_full_assignment(cnf, assignment):
+    """
+    Verify that a complete assignment satisfies all clauses in the CNF.
+    
+    :param cnf: CNF object with a 'clauses' attribute.
+    :param assignment: A complete assignment dictionary.
+    :return: True if all clauses are satisfied, False otherwise.
+    """
+    for clause in cnf.clauses:
+        clause_satisfied = False
+        for lit in clause:
+            var = abs(lit)
+            val = assignment[var]
+            if (lit > 0 and val) or (lit < 0 and not val):
+                clause_satisfied = True
+                break
+        if not clause_satisfied:
+            return False
+    return True
 
-        processed_states = 0
-        while open_set:
-            f_cost, current_g_cost, current_state = heapq.heappop(open_set)
-            processed_states += 1
 
-            if processed_states % 1000 == 0:
-                 print(f"\rA* processed {processed_states} states. Open set size: {len(open_set)}...", end="")
+def expand_state(cnf, variables, level, assignment):
+    """
+    Expand the current state by assigning the next variable with both possible values.
+    Prune any branch where a clause is already violated.
+    
+    :param cnf: CNF object with a 'clauses' attribute.
+    :param variables: Sorted list of variables.
+    :param level: Current level (number of variables assigned).
+    :param assignment: Current assignment dictionary.
+    :return: List of tuples (new_level, new_assignment) that are valid for expansion.
+    """
+    next_states = []
+    current_var = variables[level]
+    for value in [False, True]:
+        new_assignment = assignment.copy()
+        new_assignment[current_var] = value
 
-            current_assignment, current_unassigned = current_state
+        # Prune the state if any clause is violated
+        violated = False
+        for clause in cnf.clauses:
+            if is_clause_violated(clause, new_assignment):
+                violated = True
+                break
+        if not violated:
+            next_states.append((level + 1, new_assignment))
+    return next_states
 
-            if not current_unassigned: # Assign all variables
-                # Heuristic h(n) = 0 -> goal 
-                if _calculate_heuristic(current_assignment, cnf_clauses) == 0:
-                    print(f"\nPotential goal state found after {processed_states} states.")
-                        # Chuyển PartialAssignment (frozenset) sang Model (list)
-                        model: Model = list(current_assignment)
 
-                        # Validate và Extract (giống các phiên bản trước)
-                        if validate_solution(islands, edge_vars, model):
-                            print("Model passed validation.")
-                            hashi_solution = extract_solution(model, edge_vars)
-                            if check_hashi(islands, hashi_solution):
-                                print("Solution extracted and passed final check_hashi.")
-                                return hashi_solution, islands # THÀNH CÔNG!
-                else: # Heuristic != 0 -> not goal
-                     pass
-
-            if current_unassigned: 
-                var_to_assign = min(current_unassigned)
-                remaining_unassigned = current_unassigned - {var_to_assign}
-
-                #Create neighbors by assigning True/False to var_to_assign
-                for assign_value in [True, False]:
-                    literal_to_add = var_to_assign if assign_value else -var_to_assign
-
-                    neighbor_assignment = current_assignment.union({literal_to_add})
-                    neighbor_state: State = (neighbor_assignment, remaining_unassigned)
-                    neighbor_g_cost = current_g_cost + 1 # Gán thêm 1 biến
-
-                    # if there is no g_score or the new g_cost is less than the existing one
-                    if neighbor_state not in g_score or neighbor_g_cost < g_score[neighbor_state]:
-                        g_score[neighbor_state] = neighbor_g_cost
-                        h_cost = _calculate_heuristic(neighbor_assignment, cnf_clauses)
-                        f_cost_neighbor = neighbor_g_cost + h_cost
-                        heapq.heappush(open_set, (f_cost_neighbor, neighbor_g_cost, neighbor_state))
-
-        print("\nA* search on CNF completed without finding a valid solution.")
-        return [], []
-
+def solve_with_astar(grid: Grid):
+    """
+    Solve the Hashi puzzle by encoding it into a CNF and then solving the CNF
+    using the A* search algorithm. The CNF encoding remains unchanged.
+    
+    :param grid: Grid object representing the Hashi puzzle.
+    :return: The final output generated by the solution if found, or an empty string.
+    """
     try:
-      sol, islands_data = solve_hashi()
-    except KeyboardInterrupt:
-       print("\n> terminating A*...")
-       return ""
-    except Exception as e:
-       import traceback
-       print(f"\nAn unexpected error occurred during A* execution: {e}")
-       print(traceback.format_exc())
-       return ""
+        cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
 
+        # Handle case where there are no islands
+        if not islands:
+            if check_hashi([], []):
+                return generate_output(grid, [], [])
+            else:
+                return ""
 
-    if not sol or not islands_data or not check_hashi(islands_data, sol):
-        print("Final check failed or no solution found by A* on CNF.")
+        if not hasattr(cnf, 'clauses') or not cnf.clauses:
+            print("Error: CNF object does not contain clauses.")
+            return ""
+
+        # Retrieve and sort the unique variables from the CNF
+        variables = sorted(set(abs(lit) for clause in cnf.clauses for lit in clause))
+        total_combinations = 2 ** len(variables)
+        print(f"Total unique variables in clauses: {len(variables)}")
+        print(f"Total clauses: {len(cnf.clauses)}")
+        print(f"Total combinations to check (full assignments): {total_combinations:,}")
+
+        if len(variables) > 22:
+            print(f"Warning: {len(variables)} variables ({total_combinations:,} combinations) is likely too large for A* search.")
+
+        # Initialize the priority queue for A* search.
+        # Each state is a tuple (f, level, counter, assignment) where f = level (g) + heuristic (h)
+        open_list = []
+        initial_assignment = {}
+        initial_level = 0
+        counter = 0  # Tie-breaker counter
+        initial_f = initial_level + compute_heuristic(cnf, initial_assignment)
+        heapq.heappush(open_list, (initial_f, initial_level, counter, initial_assignment))
+        nodes_expanded = 0
+
+        # A* search loop
+        while open_list:
+            f, level, _, assignment = heapq.heappop(open_list)
+            nodes_expanded += 1
+
+            # If the assignment is complete, verify if it satisfies all clauses.
+            if is_complete_assignment(assignment, variables):
+                if check_full_assignment(cnf, assignment):
+                    print(f"\nFound a satisfying complete assignment after expanding {nodes_expanded:,} nodes.")
+                    model = [var if assignment[var] else -var for var in variables]
+                    if validate_solution(islands, edge_vars, model):
+                        print("Satisfying assignment passed validation.")
+                        hashi_solution = extract_solution(model, edge_vars)
+                        if check_hashi(islands, hashi_solution):
+                            print("Solution extracted and passed final check_hashi.")
+                            return generate_output(grid, islands, hashi_solution)
+                        else:
+                            print("Warning: Solution failed final check_hashi despite satisfying CNF and validation.")
+                continue
+
+            # Expand the current state to generate new states.
+            for new_level, new_assignment in expand_state(cnf, variables, level, assignment):
+                h_value = compute_heuristic(cnf, new_assignment)
+                new_f = new_level + h_value
+                counter += 1  # Increment the tie-breaker counter for each new state
+                heapq.heappush(open_list, (new_f, new_level, counter, new_assignment))
+
+            if nodes_expanded % 100000 == 0:
+                print(f"Expanded {nodes_expanded:,} nodes so far...", end="\r")
+
+        print(f"\nExpanded all nodes ({nodes_expanded:,}) without finding a valid solution.")
         return ""
 
-    print("Generating final output from A* CNF solution.")
-    return generate_output(grid, islands_data, sol)
+    except KeyboardInterrupt:
+        print("\n> Terminating...")
+        return ""
+    except AttributeError:
+        print("\nError: encode_hashi might not have returned a CNF object with '.clauses'. Check return type.")
+        return ""
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")
+        print(traceback.format_exc())
+        return ""

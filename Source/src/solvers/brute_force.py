@@ -12,8 +12,9 @@ import traceback
 
 def solve_with_bruteforce(grid: Grid):
     """
-    Giải Hashi bằng cách encode thành CNF (một lần) và giải CNF bằng brute-force,
-    dựa trên code do người dùng cung cấp.
+    Solve Hashi by encoding it into a CNF and then solving the CNF using brute-force,
+    based on the provided code. This improved version uses a precomputed variable-to-index
+    mapping to avoid recreating a dictionary for each assignment.
     """
     def solve_hashi():
         try:
@@ -21,52 +22,58 @@ def solve_with_bruteforce(grid: Grid):
 
             if not islands:
                 if check_hashi([], []):
-                    return [], []  
+                    return [], []
                 else:
-                    return [], []  
+                    return [], []
 
             if not hasattr(cnf, 'clauses') or not cnf.clauses:
                 print("Error: CNF object does not contain clauses.")
                 return [], []
 
+            # Retrieve unique variables from the CNF and sort them.
             variables = sorted(set(abs(lit) for clause in cnf.clauses for lit in clause))
-
-            print(f"Total unique variables in clauses: {len(variables)}")
-            print(f"Total clauses: {len(cnf.clauses)}")
+            # Precompute a mapping from variable to its index in the tuple.
+            var_to_index = {var: idx for idx, var in enumerate(variables)}
 
             total_combinations = 2 ** len(variables)
+            print(f"Total unique variables in clauses: {len(variables)}")
+            print(f"Total clauses: {len(cnf.clauses)}")
             print(f"Total combinations to check: {total_combinations:,}")
 
             if len(variables) > 22:
                 print(f"Warning: {len(variables)} variables ({total_combinations:,} combinations) is likely too large for brute-force.")
 
             counter = 0
+            # Iterate over each possible assignment represented as a tuple of booleans.
             for assignment_tuple in itertools.product([False, True], repeat=len(variables)):
                 counter += 1
 
                 if counter % 100000 == 0 or counter == total_combinations:
                     print(f"\rChecked {counter:,}/{total_combinations:,} assignments...", end="")
 
-                assignment = dict(zip(variables, assignment_tuple))
-
-                satisfied = all(
-                    any(
-                        (lit > 0 and assignment.get(abs(lit), False)) or
-                        (lit < 0 and not assignment.get(abs(lit), False))
-                        for lit in clause
-                    )
-                    for clause in cnf.clauses
-                )
+                satisfied = True
+                # Evaluate each clause using the assignment tuple and the precomputed mapping.
+                for clause in cnf.clauses:
+                    clause_satisfied = False
+                    for lit in clause:
+                        var = abs(lit)
+                        # Lookup the boolean value for the variable.
+                        val = assignment_tuple[var_to_index[var]]
+                        if (lit > 0 and val) or (lit < 0 and not val):
+                            clause_satisfied = True
+                            break
+                    if not clause_satisfied:
+                        satisfied = False
+                        break
 
                 if satisfied:
                     print(f"\nFound a satisfying assignment after {counter:,} checks.")
-
-                    model = [var if assignment.get(var, False) else -var for var in variables]
+                    # Construct the model as a list using the assignment tuple.
+                    model = [var if assignment_tuple[var_to_index[var]] else -var for var in variables]
 
                     if validate_solution(islands, edge_vars, model):
                         print("Satisfying assignment passed validation.")
                         hashi_solution = extract_solution(model, edge_vars)
-
                         if check_hashi(islands, hashi_solution):
                             print("Solution extracted and passed final check_hashi.")
                             return hashi_solution, islands
