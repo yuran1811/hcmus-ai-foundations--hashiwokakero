@@ -1,0 +1,60 @@
+\subsection{Solve using PySAT}
+\begin{flushleft}
+    For \textit{`Island degree constrants'}, we use \verb|PBEnc.equals| to generate the clauses.
+    \begin{minted}{python}
+def encode_hashi(
+    grid: Grid,
+    pbenc: int = PBEncType.bdd,
+    cardenc: int = CardEncType.mtotalizer,
+    *,
+    use_pysat: bool = False,
+):
+    # ...(previous codes)
+    for idx, _, _, degree in islands:
+        lits = island_incident[idx]
+        weights = [[2, 1][x & 1] for x in lits]
+        if not lits and degree:
+            print(f"[unsat]: no edges for island {idx}")
+            cnf.append([])
+            continue
+
+        if use_pysat:    
+            clauses = PBEnc.equals(
+                lits,
+                weights,
+                degree,
+                var_counter,
+                encoding=pbenc,
+            ).clauses
+        else:
+            clauses = encode_pbequal(lits, weights, degree, var_counter)
+
+        cnf.extend(clauses)
+        var_counter = max(
+            var_counter,
+            max(abs(_) if _ else 1 for c in clauses for _ in c) if clauses else 1,
+        )
+    # ...(remaining codes)
+\end{minted}
+    (the \verb|PBEnc.equals| function is used to generate the clauses for the island degree constraints.)\\
+    (the \verb|encode_pbequal| function is used to generate the clauses for the island degree constraints without using PySAT\@.)
+    \\[2\baselineskip]
+    The solver using PySAT looks like this:
+    \begin{minted}{python}
+for pbenc in range(7):
+    for cardenc in range(10):
+        try:
+            cnf, edge_vars, islands, _ = encode_hashi(grid, pbenc, cardenc, use_pysat=True)
+            with Glucose42(bootstrap_with=cnf) as solver:
+                while solver.solve():
+                    model = solver.get_model()
+                    num_clauses = solver.nof_clauses()
+                    if not model or (num_clauses and num_clauses > len(cnf.clauses)):
+                        break
+
+                    if validate_solution(islands, edge_vars, model):
+                        return extract_solution(model, edge_vars), islands
+
+                    solver.add_clause([-x for x in model])
+\end{minted}
+\end{flushleft}

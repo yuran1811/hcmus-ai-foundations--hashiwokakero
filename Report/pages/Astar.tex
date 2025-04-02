@@ -1,12 +1,6 @@
 \subsection{A* Search with heuristic}
 \noindent The A* algorithm is a widely used technique for pathfinding and graph traversal. It relies heavily on heuristics to estimate the future cost of reaching the goal. Essentially, A* extends uniform cost search by incorporating a heuristic function to guide its path selection, making it more efficient in many cases. The choice of heuristic depends on the specific problem domain, highlighting the importance of domain knowledge. For A* to be consistent, the modified cost function must always remain greater than zero.
 
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.8\textwidth]{./imgs/astar.png}
-	\caption{A* Algorithm}
-\end{figure}
-
 \subsubsection{Pseudocode}
 \begin{algorithm}[H]
 	\caption{A* Search (\textit{start, goal, heuristic})}
@@ -33,33 +27,7 @@
 
 \subsubsection{Implementation}
 \begin{itemize}
-	\item \textbf{\_\_init\_\_(\ldots)}
-	      Initializes the A* search algorithm with grid dimensions, matrix representation, initial player position, stone positions, and switch positions. It also includes options for deadlock detection and heuristic optimization.
-
-	\item \textbf{search()}
-	      Implements the A* search algorithm using a priority queue (min-heap). The function explores states by selecting the one with the lowest cost \(f = g + h\). It expands nodes by generating successors, updating costs, and maintaining a hash table for efficient state lookup.
-
-	\item \textbf{handle(new\_state, closed, frontier, state\_hash\_table)}
-	      Manages newly generated states, checking if they should be added to the frontier or updated in the hash table based on their cost values.
-
-	\item \textbf{heuristic(stones\_pos, switches\_pos)}
-	      Computes the heuristic function to estimate the cost to reach the goal. It selects between the Hungarian heuristic and Manhattan heuristic based on the optimization flag.
-
-	\item \textbf{mahattan\_heuristic(stones\_pos, switches\_pos)}
-	      Calculates the heuristic using the Manhattan distance, summing up the minimum distances from each stone to a switch.
-
-	\item \textbf{hungarian\_heuristic(stones\_pos, switches\_pos)}
-	      Uses the Hungarian algorithm to optimally assign stones to switches, minimizing the total weighted Manhattan distance.
-
-	\item \textbf{can\_go(current\_state, dir)}
-	      Checks whether the player can move in a given direction from the current state without encountering obstacles and deadlock cells.
-
-	\item \textbf{go(current\_state, dir, heuristic)}
-	      Generates a new state by moving the player in the specified direction, updating positions and recalculating heuristic values.
-
-	\item \textbf{construct\_path(final\_state)}
-	      Reconstructs the sequence of moves leading to the goal state by backtracking from the final state.
-
+	\item
 \end{itemize}
 
 \subsubsection{Heuristics in A* Algorithm}

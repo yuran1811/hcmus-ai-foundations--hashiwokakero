@@ -1,0 +1,48 @@
+\section{CNF}
+\subsection{Logical principles for generating CNFs}
+\begin{itemize}
+	\item \textbf{Variables}
+	      \begin{flushleft}
+		      For every pair of adjacent islands \(A\) and \(B\), define two Boolean variables:
+		      \begin{itemize}
+			      \item \(x^1_{A,B}\): A single bridge exists between islands \(A\) and \(B\).
+			      \item \(x^2_{A,B}\): A double bridge exists between islands \(A\) and \(B\).
+		      \end{itemize}
+	      \end{flushleft}
+	\item \textbf{Constraints}
+	      \begin{itemize}
+		      \item At most 2 bridges between two islands, that means there can be 0, 1, or 2 bridges between two islands.
+		      \item The number of bridges connected to an island must equal the island's number.
+		      \item No crossing bridges
+	      \end{itemize}
+\end{itemize}
+
+\subsection{Formulate CNF Constraints}
+\begin{itemize}
+	\item \textbf{Mutual Exclusion}
+	      \begin{flushleft}
+		      Ensure that two variables cannot be true at the same time:
+		      \begin{equation*}
+			      \lnot x^1_{A,B} \lor \lnot x^2_{A,B}
+		      \end{equation*}
+	      \end{flushleft}
+	\item \textbf{Island Degree Constraints}
+	      \begin{flushleft}
+		      For each island \(A\) with number \(n\), the sum of bridges connected to it must equal \(n\) \\
+		      Let \(Adj(A)\) be the set of islands adjacent to \(A\). For example, if \(A\) connects to \(B, C, D\), then:
+		      \begin{equation*}
+			      \sum_{X \in Adj(A)} x^1_{A,X} + 2 \cdot x^2_{A,X} = n
+		      \end{equation*}
+		      This can be encoded using \textbf{pseudo-Boolean constraints} (e.g., \verb|PBEnc.equals| in PySAT).
+	      \end{flushleft}
+	\item \textbf{No crossing bridges}
+	      \begin{flushleft}
+		      For every horizontal bridge \((A,B)\) and vertical bridge \((C,D)\) that cross, add clauses to block coexistence:
+		      \begin{gather*}
+			      \lnot x^1_{A,B} \lor \lnot x^1_{C,D} \\
+			      \lnot x^1_{A,B} \lor \lnot x^2_{C,D} \\
+			      \lnot x^2_{A,B} \lor \lnot x^1_{C,D} \\
+			      \lnot x^2_{A,B} \lor \lnot x^2_{C,D}
+		      \end{gather*}
+	      \end{flushleft}
+\end{itemize}
