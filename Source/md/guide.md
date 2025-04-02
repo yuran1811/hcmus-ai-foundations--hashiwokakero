@@ -11,6 +11,10 @@
 ```bash
 uv sync
 ```
+or
+```bash
+uv add -r requirements.txt
+```
 
 **Testing**
 
