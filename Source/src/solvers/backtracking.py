@@ -1,125 +1,132 @@
 from __types import Grid
-from utils import (
-    check_hashi,
-    encode_hashi,
-    extract_solution,
-    generate_output,
-    validate_solution,
-)
+from utils import check_hashi, encode_hashi, extract_solution, generate_output, validate_solution
+from collections import Counter
 import traceback
 
-def solve_with_backtracking(grid: Grid):
-    """
-    Solves the Hashiwokakero puzzle by encoding it into CNF using encode_hashi,
-    then using backtracking (a recursive search) to find a satisfying assignment.
-    
-    Once an assignment is found, the solution is extracted and validated.
-    """
-
-    def solve_hashi_backtrack():
-        try:
-            # Encode the puzzle into CNF.
-            # use_pysat=False means we use our own CNF encoding rather than PySAT's encoders.
-            cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
-
-            if not islands:
-                # No islands means there's nothing to solve.
-                if check_hashi([], []):
-                    return [], []
-                else:
-                    return [], []
-
-            if not hasattr(cnf, 'clauses') or not cnf.clauses:
-                print("Error: CNF object does not contain clauses.")
-                return [], []
-
-            # Collect all unique variables used in the CNF.
-            variables = sorted(set(abs(lit) for clause in cnf.clauses for lit in clause))
-            print(f"Total unique variables in clauses: {len(variables)}")
-            print(f"Total clauses: {len(cnf.clauses)}")
-            num_vars = len(variables)
-
-            # Recursive backtracking function.
-            def backtrack(index, assignment):
-                # If we've assigned all variables, check if every clause is satisfied.
-                if index == len(variables):
-                    for clause in cnf.clauses:
-                        # Clause is satisfied if at least one literal evaluates True.
-                        if not any((lit > 0 and assignment[abs(lit)]) or (lit < 0 and not assignment[abs(lit)])
-                                   for lit in clause):
-                            return None  # A clause is unsatisfied.
-                    return assignment
-
-                var = variables[index]
-                # Try both True and False assignments for the current variable.
-                for value in [True, False]:
-                    assignment[var] = value
-
-                    # Early conflict detection: check all clauses that are fully assigned.
-                    conflict = False
-                    for clause in cnf.clauses:
-                        # Determine if all literals in the clause have an assignment.
-                        all_assigned = True
-                        clause_satisfied = False
-                        for lit in clause:
-                            v = abs(lit)
-                            if v not in assignment:
-                                all_assigned = False
-                                break
-                            else:
-                                if (lit > 0 and assignment[v]) or (lit < 0 and not assignment[v]):
-                                    clause_satisfied = True
-                                    break
-                        if all_assigned and not clause_satisfied:
-                            conflict = True
-                            break
-
-                    if not conflict:
-                        result = backtrack(index + 1, assignment)
-                        if result is not None:
-                            return result
-
-                # Backtrack: remove assignment for this variable.
+def unit_propagate(clauses, assignment):
+    """Optimized unit propagation."""
+    changed = True
+    while changed:
+        changed = False
+        new_clauses = []
+        for clause in clauses:
+            unassigned_lits = []
+            satisfied = False
+            for lit in clause:
+                var = abs(lit)
                 if var in assignment:
-                    del assignment[var]
-                return None
+                    if (lit > 0 and assignment[var]) or (lit < 0 and not assignment[var]):
+                        satisfied = True
+                        break
+                else:
+                    unassigned_lits.append(lit)
+            if satisfied:
+                continue
+            if not unassigned_lits:
+                return None, None  # Conflict
+            if len(unassigned_lits) == 1:
+                unit_lit = unassigned_lits[0]
+                var = abs(unit_lit)
+                value = unit_lit > 0
+                if var in assignment and assignment[var] != value:
+                    return None, None  # Conflict
+                if var not in assignment:
+                    assignment[var] = value
+                    changed = True
+            else:
+                new_clauses.append(unassigned_lits)
+        clauses = new_clauses
+    return clauses, assignment
 
-            model_assignment = backtrack(0, {})
-            if model_assignment is None:
-                print("No satisfying assignment found.")
+def forward_check(clauses, assignment):
+    """Forward checking."""
+    for clause in clauses:
+        all_assigned = True
+        clause_satisfied = False
+        for lit in clause:
+            var = abs(lit)
+            if var not in assignment:
+                all_assigned = False
+            else:
+                if (lit > 0 and assignment[var]) or (lit < 0 and not assignment[var]):
+                    clause_satisfied = True
+                    break
+        if all_assigned and not clause_satisfied:
+            return False
+    return True
+
+def solve_with_backtracking(grid: Grid):
+    def backtrack(index, assignment, clauses, learned_clauses):
+        clauses, assignment = unit_propagate(clauses, assignment)
+        if clauses is None:
+            return None
+        if not forward_check(clauses, assignment):
+            return None
+
+        if index == len(variables):
+            return assignment
+
+        var = variables[index]
+        if var in assignment:
+            return backtrack(index + 1, assignment, clauses, learned_clauses)
+
+        for value in [True, False]:
+            new_assignment = assignment.copy()
+            new_assignment[var] = value
+            result = backtrack(index + 1, new_assignment, clauses[:], learned_clauses[:])
+            if result:
+                return result
+
+            # CDCL: Learn a new clause from the conflict.
+            conflict_clause = []
+            for lit in clauses:
+                for variable in lit:
+                    if abs(variable) in new_assignment:
+                        if (variable > 0 and not new_assignment[abs(variable)]) or (variable < 0 and new_assignment[abs(variable)]):
+                            conflict_clause.append(-variable)
+            if conflict_clause:
+                learned_clauses.append(conflict_clause)
+                clauses.append(conflict_clause)
+
+        return None
+
+    try:
+        cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
+        if not islands:
+            if check_hashi([], []):
+                return [], []
+            else:
                 return [], []
 
-            # Build the model list: if variable is True, include it as positive; else negative.
-            model = [var if model_assignment.get(var, False) else -var for var in variables]
+        if not hasattr(cnf, 'clauses') or not cnf.clauses:
+            print("Error: CNF object does not contain clauses.")
+            return [], []
 
-            # Validate the assignment using your utility functions.
-            if validate_solution(islands, edge_vars, model):
-                print("Satisfying assignment passed validation.")
-                hashi_solution = extract_solution(model, edge_vars)
-                if check_hashi(islands, hashi_solution):
-                    print("Solution extracted and passed final check_hashi.")
-                    return hashi_solution, islands
-                else:
-                    print("Warning: Solution failed final check_hashi despite validation.")
+        variables = sorted(set(abs(lit) for clause in cnf.clauses for lit in clause))
+        var_count = Counter(abs(lit) for clause in cnf.clauses for lit in clause)
+        variables.sort(key=lambda v: -var_count[v])
+
+        model_assignment = backtrack(0, {}, cnf.clauses[:], [])
+        if model_assignment is None:
+            print("No satisfying assignment found.")
+            return ""
+
+        model = [var if model_assignment.get(var, False) else -var for var in variables]
+
+        if validate_solution(islands, edge_vars, model):
+            hashi_solution = extract_solution(model, edge_vars)
+            if check_hashi(islands, hashi_solution):
+                return generate_output(grid, islands, hashi_solution)
             else:
-                print("Validation of the assignment failed.")
+                print("Warning: Extracted solution failed final check_hashi.")
+        else:
+            print("Validation of the assignment failed.")
 
-        except KeyboardInterrupt:
-            print("\n> Terminating...")
-            return [], []
-        except Exception as e:
-            print(f"\nAn unexpected error occurred: {e}")
-            print(traceback.format_exc())
-            return [], []
-
-        return [], []
-
-    sol, islands = solve_hashi_backtrack()
-
-    if not sol or not islands or not check_hashi(islands, sol):
-        print("Final check failed or no solution found.")
+    except KeyboardInterrupt:
+        print("\n> Terminating...")
         return ""
-
-    print("Generating final output.")
-    return generate_output(grid, islands, sol)
-
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")
+        print(traceback.format_exc())
+        return ""
+    return ""
