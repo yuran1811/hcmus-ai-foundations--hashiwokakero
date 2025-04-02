@@ -1,7 +1,7 @@
 \subsection{Solve using PySAT}
 \begin{flushleft}
-    For \textit{`Island degree constrants'}, we use \verb|PBEnc.equals| to generate the clauses.
-    \begin{minted}{python}
+	For \textit{`Island degree constrants'}, we use \verb|PBEnc.equals| to generate the clauses.
+	\begin{minted}{python}
 def encode_hashi(
     grid: Grid,
     pbenc: int = PBEncType.bdd,
@@ -36,11 +36,11 @@ def encode_hashi(
         )
     # ...(remaining codes)
 \end{minted}
-    (the \verb|PBEnc.equals| function is used to generate the clauses for the island degree constraints.)\\
-    (the \verb|encode_pbequal| function is used to generate the clauses for the island degree constraints without using PySAT\@.)
-    \\[2\baselineskip]
-    The solver using PySAT looks like this:
-    \begin{minted}{python}
+	(the \verb|PBEnc.equals| function is used to generate the clauses for the island degree constraints.)\\
+	(the \verb|encode_pbequal| function is used to generate the clauses for the island degree constraints without using PySAT\@.)
+	\\[2\baselineskip]
+	The solver using PySAT looks like this:
+	\begin{minted}{python}
 for pbenc in range(7):
     for cardenc in range(10):
         try:

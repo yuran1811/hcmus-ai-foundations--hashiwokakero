@@ -1,53 +1,74 @@
 \subsection{A* Search with heuristic}
-\noindent The A* algorithm is a widely used technique for pathfinding and graph traversal. It relies heavily on heuristics to estimate the future cost of reaching the goal. Essentially, A* extends uniform cost search by incorporating a heuristic function to guide its path selection, making it more efficient in many cases. The choice of heuristic depends on the specific problem domain, highlighting the importance of domain knowledge. For A* to be consistent, the modified cost function must always remain greater than zero.
+\noindent A* search is a heuristic-driven algorithm that can be effectively applied to solving CNF problems by navigating the space of partial variable assignments. In this approach, each state represents a partial assignment of truth values to the CNF variables, and the algorithm uses a heuristic to estimate the cost from the current state to a complete, satisfying solution. Specifically, the heuristic can be defined as the number of clauses that are fully assigned but remain unsatisfied. This metric guides the search by prioritizing states that are closer to satisfying all clauses, thus reducing the exploration of paths that are likely to lead to dead ends. By systematically expanding these states and pruning those that immediately violate any clause, A* efficiently converges on a complete assignment that satisfies the entire CNF formula, if one exists.
 
 \subsubsection{Pseudocode}
 \begin{algorithm}[H]
-	\caption{A* Search (\textit{start, goal, heuristic})}
-	\label{alg:astar}
-	\begin{algorithmic}[1]
-		\State priority queue \(\gets\) [(start, cost = 0, estimated total cost = heuristic(start))]
-		\While {priority queue is not empty}
-		\State (node, cost) \(\gets\) dequeue(priority queue)
-		\If {node = goal}
-		\State return path
-		\EndIf
-		\ForAll {neighbor in valid moves}
-		\State new cost \(\gets\) cost + move cost
-		\State estimated total cost \(\gets\) new cost + heuristic(neighbor)
-		\If {neighbor not visited or new cost \(<\) previous cost}
-		\State mark neighbor as visited
-		\State enqueue(priority queue, (neighbor, new cost, estimated total cost))
-		\EndIf
-		\EndFor
-		\EndWhile
-		\State return failure
-	\end{algorithmic}
+    \caption{A* Search for Hashiwokakero (\textit{grid})}
+    \label{alg:astar_hashiwokakero}
+    \begin{algorithmic}[1]
+        \State \textbf{Input:} \textit{grid} (Hashiwokakero puzzle grid)
+        \State \textbf{Output:} Solution to the puzzle or failure
+        \State Encode the puzzle into CNF: \textit{cnf, edge\_vars, islands, variables} $\gets$ \textit{encode\_hashi(grid)}
+        \If {no islands exist}
+        \If {\textit{check\_hashi([], [])}}
+        \State \Return \textit{generate\_output(grid, [], [])}
+        \Else
+        \State \Return failure
+        \EndIf
+        \EndIf
+        \State Initialize priority queue: \textit{open\_list} $\gets$ [(initial\_state)]
+        \State Initialize \textit{nodes\_expanded} $\gets$ 0
+        \While {\textit{open\_list} is not empty}
+        \State \textit{state} $\gets$ dequeue(\textit{open\_list})
+        \State \textit{nodes\_expanded} $\gets$ \textit{nodes\_expanded} + 1
+        \If {\textit{state.assignment} is complete and satisfies all clauses}
+        \State \Return \textit{generate\_output(grid, islands, solution)}
+        \EndIf
+        \ForAll {neighbor states of \textit{state}}
+        \If {neighbor is valid (no violated clauses)}
+        \State Compute heuristic: \textit{h} $\gets$ \textit{compute\_heuristic(neighbor)}
+        \State Compute cost: \textit{f} $\gets$ \textit{g + h}
+        \State Enqueue \textit{neighbor} into \textit{open\_list}
+        \EndIf
+        \EndFor
+        \If {\textit{nodes\_expanded} mod 100,000 = 0}
+        \State Print progress: ``Expanded \textit{nodes\_expanded} nodes...''
+        \EndIf
+        \EndWhile
+        \State \Return failure
+    \end{algorithmic}
 \end{algorithm}
 
 \subsubsection{Implementation}
 \begin{itemize}
-	\item
+    \item \textbf{compute\_heuristic:} Computes a heuristic value by counting the number of clauses that are fully assigned but unsatisfied. This function guides the search towards more promising partial assignments.
+    \item \textbf{is\_clause\_violated:} Checks whether a clause is violated by the current assignment by verifying that all its variables are assigned and that none of the literals satisfy the clause.
+    \item \textbf{is\_complete\_assignment:} Determines if an assignment is complete by ensuring that every variable has been assigned a truth value.
+    \item \textbf{check\_full\_assignment:} Verifies that a complete assignment satisfies all clauses in the CNF, ensuring the overall solution is valid.
+    \item \textbf{expand\_state:} Expands the current state by assigning the next variable with both possible truth values, while pruning any branch where a clause is already violated.
+    \item \textbf{solve\_with\_astar:} Encodes the Hashi puzzle into a CNF and employs the A* search algorithm to explore assignments, validate complete solutions, and generate the final puzzle output.
 \end{itemize}
+
 
 \subsubsection{Heuristics in A* Algorithm}
-A* search uses a heuristic function \( h(n) \) to estimate the cost from a given state to the goal. The total cost function is defined as:
+The code implements A* search to solve a CNF-encoded Hashi puzzle. In this implementation, the total cost function is defined as:
 \[
-	f(n) = g(n) + h(n)
+    f(n) = g(n) + h(n)
 \]
+
 where:
 \begin{itemize}
-	\item \( g(n) \) is the actual cost from the start state to the current state \( n \).
-	\item \( h(n) \) is the estimated cost from \( n \) to the goal state.
+    \item \( g(n) \): This is represented by the current level of the search, which corresponds to the number of variables that have been assigned values so far.
+
+    \item \( h(n) \): The heuristic is computed by the compute\_heuristic function. It counts the number of clauses that are fully assigned yet remain unsatisfied. This estimate reflects how "far" the current partial assignment is from satisfying the overall CNF.
 \end{itemize}
-For Sokoban, common heuristic choices include:
-\begin{itemize}
-	\item \textbf{Manhattan Distance:} The sum of the absolute differences between the x and y coordinates of each stone and its nearest goal position.
-	\item \textbf{Hungarian Algorithm:} Computes an optimal assignment of stones to switches, minimizing the total weighted Manhattan distance.
-\end{itemize}
-A* is optimal if \( h(n) \) is \textit{admissible} (never overestimates the true cost) and \textit{consistent} (satisfies the triangle inequality).
+
+
+The algorithm starts with an empty assignment and iteratively expands states by assigning the next variable (selected in sorted order). It prunes any branch where a clause is already violated to avoid unnecessary exploration. Each new state is pushed into a priority queue (implemented with a heap) based on its \( f(n) \) value, ensuring that states estimated to be closer to a solution are explored first.
+
+Once a complete assignment is reached, the algorithm verifies that it satisfies all clauses, extracts a model, validates it against the puzzle's constraints, and finally generates the corresponding output if the solution is correct. Overall, the design carefully integrates the A* components \( g(n) \), \( h(n) \), and state expansion—to efficiently search for a valid solution.
 
 \subsubsection{Time and Space Complexity}
-\textbf{Time Complexity:} \( O(b^d) \) in the worst case, but with a good heuristic, it can be significantly reduced. If the heuristic is admissible and consistent, A* is optimal and complete.
+\textbf{Time Complexity:} \( O(b^d) \) in the worst case, where b is the branching factor and d is the solution depth. However, a well-designed heuristic significantly reduces the search space. If the heuristic is admissible and consistent, A* efficiently finds an optimal solution.
 
-\textbf{Space Complexity:} \( O(b^d) \), as it keeps all generated nodes in memory.
+\textbf{Space Complexity:} \( O(b^d) \), as the algorithm stores all generated nodes in memory. This can be a limiting factor for large problem instances but ensures completeness and optimality.
