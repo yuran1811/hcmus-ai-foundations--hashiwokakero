@@ -12,13 +12,12 @@ from utils import (
 
 
 def unit_propagate(clauses: list[list[int]], assignment: dict[int, bool]):
-    """Optimized unit propagation."""
     changed = True
     while changed:
         changed = False
-        new_clauses = []
+        new_clauses: list[list[int]] = []
         for clause in clauses:
-            unassigned_lits = []
+            unassigned_lits: list[int] = []
             satisfied = False
             for lit in clause:
                 var = abs(lit)
@@ -30,18 +29,19 @@ def unit_propagate(clauses: list[list[int]], assignment: dict[int, bool]):
                         break
                 else:
                     unassigned_lits.append(lit)
+
             if satisfied:
                 continue
 
             if not unassigned_lits:
-                return [], {}  # Conflict
+                return None, None  # Conflict
 
             if len(unassigned_lits) == 1:
                 unit_lit = unassigned_lits[0]
                 var = abs(unit_lit)
                 value = unit_lit > 0
                 if var in assignment and assignment[var] != value:
-                    return [], {}  # Conflict
+                    return None, None  # Conflict
 
                 if var not in assignment:
                     assignment[var] = value
@@ -53,8 +53,7 @@ def unit_propagate(clauses: list[list[int]], assignment: dict[int, bool]):
     return clauses, assignment
 
 
-def forward_check(clauses, assignment):
-    """Forward checking."""
+def forward_check(clauses: list[list[int]], assignment: dict[int, bool]):
     for clause in clauses:
         all_assigned = True
         clause_satisfied = False
@@ -72,17 +71,28 @@ def forward_check(clauses, assignment):
 
 
 def solve_with_backtracking(grid: Grid):
+    cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
+    if not islands or not cnf.clauses:
+        return [], []
+
+    variables: list[int] = sorted(
+        set(abs(lit) for clause in cnf.clauses for lit in clause)
+    )
+    var_count = Counter(abs(lit) for clause in cnf.clauses for lit in clause)
+    variables.sort(key=lambda v: -var_count[v])
+
     def backtrack(
         index: int,
-        assignment: dict[int, bool],
-        clauses: list[list[int]],
+        assignment: dict[int, bool] | None,
+        clauses: list[list[int]] | None,
         learned_clauses: list[list[int]],
-    ):
-        clauses, assignment = unit_propagate(clauses, assignment)
-        if clauses is None:
-            return None
+    ) -> dict[int, bool]:
+        clauses, assignment = unit_propagate(clauses or [], assignment or {})
+        if clauses is None or assignment is None:
+            return {}
+
         if not forward_check(clauses, assignment):
-            return None
+            return {}
 
         if index == len(variables):
             return assignment
@@ -101,7 +111,7 @@ def solve_with_backtracking(grid: Grid):
                 return result
 
             # CDCL: Learn a new clause from the conflict.
-            conflict_clause = []
+            conflict_clause: list[int] = []
             for lit in clauses:
                 for variable in lit:
                     if abs(variable) in new_assignment:
@@ -113,42 +123,25 @@ def solve_with_backtracking(grid: Grid):
                 learned_clauses.append(conflict_clause)
                 clauses.append(conflict_clause)
 
-        return None
+        return {}
 
     try:
-        cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
-        if not islands:
-            if check_hashi([], []):
-                return [], []
-            else:
-                return [], []
-
-        if not hasattr(cnf, "clauses") or not cnf.clauses:
-            # print("Error: CNF object does not contain clauses.")
-            return [], []
-
-        variables = sorted(set(abs(lit) for clause in cnf.clauses for lit in clause))
-        var_count = Counter(abs(lit) for clause in cnf.clauses for lit in clause)
-        variables.sort(key=lambda v: -var_count[v])
-
         model_assignment = backtrack(0, {}, cnf.clauses[:], [])
         if model_assignment is None:
-            # print("No satisfying assignment found.")
+            print("No satisfying assignment found.")
             return ""
 
         model = [var if model_assignment.get(var, False) else -var for var in variables]
 
         if validate_solution(islands, edge_vars, model):
-            hashi_solution = extract_solution(model, edge_vars)
-            if check_hashi(islands, hashi_solution):
-                return generate_output(grid, islands, hashi_solution)
-            else:
-                # print("Warning: Extracted solution failed final check_hashi.")
-                pass
+            sol = extract_solution(model, edge_vars)
+            if check_hashi(islands, sol):
+                return generate_output(grid, islands, sol)
+
+            # print("Warning: Extracted solution failed final check_hashi.")
         else:
             # print("Validation of the assignment failed.")
             pass
-
     except KeyboardInterrupt:
         print("\n> Terminating...")
         return ""
@@ -156,4 +149,5 @@ def solve_with_backtracking(grid: Grid):
         print(f"\nAn unexpected error occurred: {e}")
         print(traceback.format_exc())
         return ""
+
     return ""
