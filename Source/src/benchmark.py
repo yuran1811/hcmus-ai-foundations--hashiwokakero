@@ -8,7 +8,7 @@ from typing import Callable
 import matplotlib.pyplot as plt
 
 from __types import Grid
-from constants.path import INP_DIR
+from constants.path import INP_DIR, ROOT_DIR
 from solvers import (
     solve_with_astar,
     solve_with_backtracking,
@@ -17,7 +17,7 @@ from solvers import (
 )
 from utils import byte_convert, parse_input, time_convert
 
-TEST_SETS = [7, 9, 11, 13, 17]
+TEST_SETS = [7, 9, 11, 13, 17, 20]
 
 SOLVERS: list[tuple[str, Callable, list[int]]] = [
     ("pysat", solve_with_pysat, []),
@@ -111,6 +111,9 @@ def visualize(
         markers = ["o-", "*--", "d:", "s-"]
 
         for k in range(len(y_bar[0])):
+            if any([not y[k][criteria.value[0]] for y in y_bar]):
+                continue
+
             axs[ri][ci].plot(
                 x_bar,
                 [y[k][criteria.value[0]] for y in y_bar],
@@ -129,9 +132,14 @@ def visualize(
     # plt.suptitle("Group Title")
     # plt.show()
 
-    saved_file = f"benchmark-{"_".join(criteria.value[1].split(" "))}.png"
+    saved_filename = f"benchmark-{"_".join(criteria.value[1].split(" "))}.png"
+    saved_file = os.path.join(
+        ROOT_DIR.replace(os.path.basename(ROOT_DIR), ""), "Report/imgs", saved_filename
+    )
     plt.savefig(saved_file, format="png")
-    print(f"  > saved: {saved_file}")
+    print(
+        f"  > saved: {saved_file}",
+    )
 
 
 if __name__ == "__main__":
@@ -139,6 +147,7 @@ if __name__ == "__main__":
 
     print("+ Testing")
     tests = tests_prepare()
+    failed_tests = {name: [] for name, _, _ in SOLVERS}
     for name, path, grid in tests:
         print(f"  > exec: {name}")
         plot_data[name] = []
@@ -150,6 +159,8 @@ if __name__ == "__main__":
 
             solved, t, _, peak_mem = benchmark(solver, grid)
             plot_data[name].append((algo, t * 1000, peak_mem / 1024, bool(solved)))
+            if not bool(solved):
+                failed_tests[algo].append(name)
             PASSED_COUNT[i] += bool(solved)
 
             print(
@@ -164,7 +175,7 @@ if __name__ == "__main__":
             else tests
         )
         print(
-            f"  | {algo}: {PASSED_COUNT[i]}/{len(used_tests)} ({(100 * PASSED_COUNT[i] / len(used_tests)):.2f}%)"
+            f"  | {algo}: {PASSED_COUNT[i]}/{len(used_tests)} - {(100 * PASSED_COUNT[i] / len(used_tests)):.2f}%, (failed on: {",".join([f"'{x}'" for x in failed_tests[algo]])})"
         )
 
     print("\n+ Plotting")
