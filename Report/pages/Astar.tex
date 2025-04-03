@@ -31,9 +31,6 @@
         \State Enqueue \textit{neighbor} into \textit{open\_list}
         \EndIf
         \EndFor
-        \If {\textit{nodes\_expanded} mod 100,000 = 0}
-        \State Print progress: ``Expanded \textit{nodes\_expanded} nodes...''
-        \EndIf
         \EndWhile
         \State \Return failure
     \end{algorithmic}
@@ -41,12 +38,12 @@
 
 \subsubsection{Implementation}
 \begin{itemize}
-    \item \textbf{compute\_heuristic:} Computes a heuristic value by counting the number of clauses that are fully assigned but unsatisfied. This function guides the search towards more promising partial assignments.
-    \item \textbf{is\_clause\_violated:} Checks whether a clause is violated by the current assignment by verifying that all its variables are assigned and that none of the literals satisfy the clause.
-    \item \textbf{is\_complete\_assignment:} Determines if an assignment is complete by ensuring that every variable has been assigned a truth value.
-    \item \textbf{check\_full\_assignment:} Verifies that a complete assignment satisfies all clauses in the CNF, ensuring the overall solution is valid.
-    \item \textbf{expand\_state:} Expands the current state by assigning the next variable with both possible truth values, while pruning any branch where a clause is already violated.
-    \item \textbf{solve\_with\_astar:} Encodes the Hashi puzzle into a CNF and employs the A* search algorithm to explore assignments, validate complete solutions, and generate the final puzzle output.
+    \item \textbf{compute\_heuristic:} Compute the heuristic value for a given partial assignment. The heuristic is the number of clauses that are fully assigned but unsatisfied.
+    \item \textbf{is\_clause\_violated:} Checks if a clause is violated by confirming that all its variables are assigned and none of its literals evaluate to True. It is used to prune branches that cannot lead to a valid solution.
+    \item \textbf{is\_complete\_assignment:} Determines whether every variable in the problem has been assigned a value. It simply checks if the assignment covers all variables.
+    \item \textbf{check\_full\_assignment:} Verifies that a complete assignment satisfies every clause in the CNF. It confirms the validity of the overall solution by ensuring no clause is left unsatisfied.
+    \item \textbf{expand\_state:} Expands the current state by assigning the next unassigned variable with both True and False, generating new partial assignments. It prunes any branch immediately if a clause is violated by the new assignment.
+    \item \textbf{solve\_with\_astar:} Encodes the Hashi puzzle into a CNF and employs an A* search to explore the space of assignments. It validates complete solutions and generates the final puzzle output upon finding a valid assignment.
 \end{itemize}
 
 
