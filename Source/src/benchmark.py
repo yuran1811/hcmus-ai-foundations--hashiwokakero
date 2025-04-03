@@ -17,7 +17,16 @@ from solvers import (
 )
 from utils import byte_convert, parse_input, time_convert
 
-TEST_SETS = [7, 9, 11]
+TEST_SETS = [7, 9, 11, 13, 17]
+
+SOLVERS: list[tuple[str, Callable, list[int]]] = [
+    ("pysat", solve_with_pysat, []),
+    # ("astar", solve_with_astar, [7, 9, 11]),
+    ("backtracking", solve_with_backtracking, [7, 9, 11]),
+    # ("bruteforce", solve_with_bruteforce, [7]),
+]
+SOLVER_COUNT = len(SOLVERS)
+PASSED_COUNT = [0] * SOLVER_COUNT
 
 
 class Criteria(Enum):
@@ -83,9 +92,9 @@ def visualize(
         solved = [bool(s) for s in solved]
 
         if test_inp not in y_data:
-            y_data[test_inp] = [[] for _ in range(4)]
+            y_data[test_inp] = [[] for _ in range(SOLVER_COUNT)]
 
-        for k in range(4):
+        for k in range(SOLVER_COUNT):
             y_data[test_inp][k].extend([algos[k], times[k], mems[k], solved[k]])
 
     y_values = sorted(
@@ -98,39 +107,34 @@ def visualize(
         ci = i % 3
 
         y_bar = [v for k, v in y_values if k.startswith(f"{size}x{size}")]
-        axs[ri][ci].plot(
-            x_bars[last_from : last_from + len(y_bar)],
-            [y[0][criteria.value[0]] for y in y_bar],
-            "o-",
-            [y[1][criteria.value[0]] for y in y_bar],
-            "*--",
-            [y[2][criteria.value[0]] for y in y_bar],
-            "d:",
-            [y[3][criteria.value[0]] for y in y_bar],
-            "s-",
-            label="",
-            markersize=6,
-        )
+        x_bar = x_bars[last_from : last_from + len(y_bar)]
+        markers = ["o-", "*--", "d:", "s-"]
+
+        for k in range(len(y_bar[0])):
+            axs[ri][ci].plot(
+                x_bar,
+                [y[k][criteria.value[0]] for y in y_bar],
+                markers[k],
+                label=y_bar[0][k][0],
+                markersize=6,
+            )
         axs[ri][ci].set_xlabel("input")
         axs[ri][ci].set_ylabel(criteria.value[2])
         axs[ri][ci].set_title(f"Map {size}x{size} {criteria.value[1]}")
+        axs[ri][ci].legend(loc="lower right", fontsize=8)
 
         last_from += len(y_bar)
 
     plt.tight_layout()
     # plt.suptitle("Group Title")
-    plt.show()
+    # plt.show()
+
+    saved_file = f"benchmark-{"_".join(criteria.value[1].split(" "))}.png"
+    plt.savefig(saved_file, format="png")
+    print(f"  > saved: {saved_file}")
 
 
 if __name__ == "__main__":
-    solved_count = [0] * 4
-    solvers: list[tuple[str, Callable, list[int]]] = [
-        ("pysat", solve_with_pysat, []),
-        ("astar", solve_with_astar, []),
-        ("backtracking", solve_with_backtracking, [7]),
-        ("bruteforce", solve_with_bruteforce, [7]),
-    ]
-
     plot_data: dict[str, list[tuple[str, float, float, bool]]] = {}
 
     print("+ Testing")
@@ -139,22 +143,28 @@ if __name__ == "__main__":
         print(f"  > exec: {name}")
         plot_data[name] = []
 
-        for i, (algo, solver, size) in enumerate(solvers):
-            if size and name.startswith(f"{size}x{size}"):
+        for i, (algo, solver, size) in enumerate(SOLVERS):
+            if size and not any(name.startswith(f"{_}x{_}") for _ in size):
+                plot_data[name].append((algo, 0, 0, False))
                 continue
 
             solved, t, _, peak_mem = benchmark(solver, grid)
             plot_data[name].append((algo, t * 1000, peak_mem / 1024, bool(solved)))
-            solved_count[i] += bool(solved)
+            PASSED_COUNT[i] += bool(solved)
 
             print(
                 f"    | {algo[:5]}: {bool(solved)}\t{time_convert(t)},{byte_convert(peak_mem)}"
             )
 
     print("\n+ Summary")
-    for i, (algo, solver, _) in enumerate(solvers):
+    for i, (algo, solver, size) in enumerate(SOLVERS):
+        used_tests = (
+            [x for x in tests if any([x[0].startswith(f"{_}x{_}") for _ in size])]
+            if size
+            else tests
+        )
         print(
-            f"  | {algo}: {solved_count[i]}/{len(tests)} ({100 * solved_count[i] / len(tests)}%)"
+            f"  | {algo}: {PASSED_COUNT[i]}/{len(used_tests)} ({(100 * PASSED_COUNT[i] / len(used_tests)):.2f}%)"
         )
 
     print("\n+ Plotting")

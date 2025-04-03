@@ -188,7 +188,7 @@ def extract_solution(model: list[int], edge_vars: dict[PairII, PairII]):
     return solution
 
 
-def encode_pbequal(lits: list[int], weights: list[int], k: int, top_id: int):
+def encode_pbequal_1(lits: list[int], weights: list[int], k: int, top_id: int):
     def next_var():
         nonlocal top_id
         top_id += 1
@@ -243,6 +243,145 @@ def encode_pbequal(lits: list[int], weights: list[int], k: int, top_id: int):
     for sum_val in s[n]:
         if sum_val != k:
             clauses.append([-s[n][sum_val]])
+
+    return clauses
+
+
+def encode_pbequal_2(lits: list[int], weights: list[int], k: int, top_id: int):
+    def next_var():
+        nonlocal top_id
+        top_id += 1
+        return top_id
+
+    clauses: list[list[int]] = []
+    n = len(lits)
+
+    # Edge cases
+    total_sum = sum(weights)
+    if k < 0 or k > total_sum:
+        return [[1], [-1]]  # Unsatisfiable
+    if n == 0:
+        return [[1], [-1]] if k != 0 else []
+    if k == 0:
+        return [[-lit] for lit in lits]
+    if k == total_sum:
+        return [[lit] for lit in lits]
+
+    # Precompute suffix sums for pruning (0-based)
+    suffix_sums = [0] * (n + 1)
+    for i in reversed(range(n)):
+        suffix_sums[i] = weights[i] + suffix_sums[i + 1]
+
+    s = [{} for _ in range(n + 1)]
+    s[0][0] = next_var()
+    clauses.append([s[0][0]])
+
+    for i in range(n):
+        x_i = lits[i]
+        a_i = weights[i]
+        remaining = suffix_sums[i + 1]  # Sum from i+1 onward
+        s_prev = s[i]
+        s_curr = {}
+
+        for prev_sum in list(s_prev.keys()):
+            # Calculate max and min possible sums after including/excluding current
+            max_possible = prev_sum + a_i + remaining
+            min_possible = prev_sum
+
+            # Prune paths that can't reach k
+            if max_possible < k or min_possible > k:
+                continue
+
+            aux_prev = s_prev[prev_sum]
+
+            # Case 1: Exclude x_i (sum remains prev_sum)
+            new_sum_excl = prev_sum
+            if new_sum_excl <= k and (new_sum_excl + remaining) >= k:
+                if new_sum_excl not in s_curr:
+                    s_curr[new_sum_excl] = next_var()
+                clauses.append([-aux_prev, x_i, s_curr[new_sum_excl]])
+
+            # Case 2: Include x_i (sum becomes prev_sum + a_i)
+            new_sum_incl = prev_sum + a_i
+            if new_sum_incl <= k and (new_sum_incl + remaining) >= k:
+                if new_sum_incl not in s_curr:
+                    s_curr[new_sum_incl] = next_var()
+                clauses.append([-aux_prev, -x_i, s_curr[new_sum_incl]])
+
+        # Add mutual exclusion between sums
+        sums = sorted(s_curr.keys())
+        for idx in range(len(sums)):
+            for jdx in range(idx + 1, len(sums)):
+                clauses.append([-s_curr[sums[idx]], -s_curr[sums[jdx]]])
+
+        s[i + 1] = s_curr
+
+    # Final constraint: sum must be exactly k
+    if k not in s[n]:
+        return [[1], [-1]]  # Unsatisfiable
+    clauses.append([s[n][k]])
+
+    return clauses
+
+
+def encode_pbequal(lits: list[int], weights: list[int], k: int, top_id: int):
+    def next_var():
+        nonlocal top_id
+        top_id += 1
+        return top_id
+
+    clauses: list[list[int]] = []
+
+    n = len(lits)
+    if n == 0:
+        return [[1], [-1]] if k != 0 else []
+
+    s = [{} for _ in range(n + 1)]
+    s[0][0] = next_var()
+    clauses.append([s[0][0]])
+
+    for i in range(1, n + 1):
+        x_i = lits[i - 1]
+        a_i = weights[i - 1]
+        s_prev = s[i - 1]
+        s_curr = {}
+
+        if a_i == 0:
+            for prev_sum in s_prev:
+                aux_prev = s_prev[prev_sum]
+                new_sum = prev_sum
+                if new_sum not in s_curr:
+                    s_curr[new_sum] = next_var()
+                aux_new = s_curr[new_sum]
+                clauses.append([-aux_prev, aux_new])
+        else:
+            for prev_sum in s_prev:
+                aux_prev = s_prev[prev_sum]
+                # Case 1: x_i is False
+                if prev_sum not in s_curr:
+                    s_curr[prev_sum] = next_var()
+                aux_false = s_curr[prev_sum]
+                clauses.append([-aux_prev, x_i, aux_false])
+                # Case 2: x_i is True
+                new_sum = prev_sum + a_i
+                if new_sum not in s_curr:
+                    s_curr[new_sum] = next_var()
+                aux_true = s_curr[new_sum]
+                clauses.append([-aux_prev, -x_i, aux_true])
+
+        # Add mutual exclusion clauses for s_curr
+        sums = sorted(s_curr.keys())
+        for idx in range(len(sums)):
+            for jdx in range(idx + 1, len(sums)):
+                clauses.append([-s_curr[sums[idx]], -s_curr[sums[jdx]]])
+
+        s[i] = s_curr
+
+    # Final constraint
+    if k not in s[n]:
+        return [[1], [-1]]  # Unsatisfiable
+
+    clauses.append([s[n][k]])
 
     return clauses
 
@@ -321,14 +460,20 @@ def encode_hashi(
     """[[Phase 4]]"""
     # At least one bridge per island => at least n-1 edges
     if use_pysat:
-        _ = CardEnc.atleast(
-            [x for x in range(1, max_edge_vars_counter)],
-            bound=n_islands - 1,
-            top_id=var_counter,
-            encoding=cardenc,
-        )
+        # _ = CardEnc.atleast(
+        #     [x for x in range(1, max_edge_vars_counter)],
+        #     bound=n_islands - 1,
+        #     top_id=var_counter,
+        #     encoding=cardenc,
+        # )
         # cnf.extend(_)
+        pass
     else:
         pass
+
+    # print(
+    #     f"[sat]: {len(cnf.clauses)} clauses, {var_counter} variables, use pysat {use_pysat}"
+    # )
+    # print(cnf.clauses)
 
     return cnf, edge_vars, islands, var_counter
