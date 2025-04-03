@@ -8,7 +8,7 @@ from typing import Callable
 import matplotlib.pyplot as plt
 
 from __types import Grid
-from constants.path import INP_DIR, ROOT_DIR
+from constants.path import FIG_DIR, INP_DIR
 from solvers import (
     solve_with_astar,
     solve_with_backtracking,
@@ -18,12 +18,11 @@ from solvers import (
 from utils import byte_convert, parse_input, time_convert
 
 TEST_SETS = [7, 9, 11, 13, 17, 20]
-
 SOLVERS: list[tuple[str, Callable, list[int]]] = [
-    ("pysat", solve_with_pysat, []),
-    # ("astar", solve_with_astar, [7, 9, 11]),
-    ("backtracking", solve_with_backtracking, [7, 9, 11]),
-    # ("bruteforce", solve_with_bruteforce, [7]),
+    ("pysat", solve_with_pysat, TEST_SETS),
+    ("astar", solve_with_astar, TEST_SETS[:0]),
+    ("backtracking", solve_with_backtracking, TEST_SETS[:4]),
+    ("bruteforce", solve_with_bruteforce, TEST_SETS[:0]),
 ]
 SOLVER_COUNT = len(SOLVERS)
 PASSED_COUNT = [0] * SOLVER_COUNT
@@ -133,9 +132,7 @@ def visualize(
     # plt.show()
 
     saved_filename = f"benchmark-{"_".join(criteria.value[1].split(" "))}.png"
-    saved_file = os.path.join(
-        ROOT_DIR.replace(os.path.basename(ROOT_DIR), ""), "Report/imgs", saved_filename
-    )
+    saved_file = os.path.join(FIG_DIR, saved_filename)
     plt.savefig(saved_file, format="png")
     print(
         f"  > saved: {saved_file}",
@@ -153,7 +150,7 @@ if __name__ == "__main__":
         plot_data[name] = []
 
         for i, (algo, solver, size) in enumerate(SOLVERS):
-            if size and not any(name.startswith(f"{_}x{_}") for _ in size):
+            if len(size) == 0 or not any(name.startswith(f"{_}x{_}") for _ in size):
                 plot_data[name].append((algo, 0, 0, False))
                 continue
 
@@ -172,11 +169,15 @@ if __name__ == "__main__":
         used_tests = (
             [x for x in tests if any([x[0].startswith(f"{_}x{_}") for _ in size])]
             if size
-            else tests
+            else []
         )
-        print(
-            f"  | {algo}: {PASSED_COUNT[i]}/{len(used_tests)} - {(100 * PASSED_COUNT[i] / len(used_tests)):.2f}%, (failed on: {",".join([f"'{x}'" for x in failed_tests[algo]])})"
-        )
+        if len(used_tests):
+            print(
+                f"  | {algo}: {PASSED_COUNT[i]}/{len(used_tests)} - {(100 * PASSED_COUNT[i] / len(used_tests)):.2f}%",
+                f"(failed on: {",".join([f"'{x}'" for x in failed_tests[algo]])})"
+                if len(failed_tests[algo])
+                else "",
+            )
 
     print("\n+ Plotting")
     visualize(plot_data, Criteria.TIME)

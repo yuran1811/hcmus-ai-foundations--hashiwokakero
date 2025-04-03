@@ -2,7 +2,6 @@ import os
 import re
 import tomllib
 
-from pysat.card import CardEnc
 from pysat.card import EncType as CardEncType
 from pysat.formula import CNF
 from pysat.pb import EncType as PBEncType
@@ -45,10 +44,6 @@ def get_input_path(size: int = 7, idx: int = 1) -> str:
     return os.path.join(INP_DIR, f"{size}x{size}", f"input-{idx:02d}.txt")
 
 
-def in_bounds(r: int, c: int, nrows: int, ncols: int):
-    return 0 <= r < nrows and 0 <= c < ncols
-
-
 def parse_input(file_path: str):
     with open(file_path, "r") as f:
         lines = f.read().strip().split("\n")
@@ -84,6 +79,10 @@ def prettify_output(output: list[list[str]]):
         [print(" ".join(x)) for x in output]
 
 
+def in_bounds(r: int, c: int, nrows: int, ncols: int):
+    return 0 <= r < nrows and 0 <= c < ncols
+
+
 def get_islands(grid: Grid):
     islands: list[Island] = []
     for r, row in enumerate(grid):
@@ -117,20 +116,6 @@ def potential_edges(grid: Grid, islands: list[Island]):
     return edges
 
 
-def edge_orientation(edge: EdgeExtend):
-    (_, _, (r1, c1), (r2, c2)) = edge
-    if r1 == r2:
-        return "h"
-    if c1 == c2:
-        return "v"
-    return "other"
-
-
-def edge_span(edge: EdgeExtend):
-    (_, _, (r1, c1), (r2, c2)) = edge
-    return (min(r1, r2), max(r1, r2), min(c1, c2), max(c1, c2))
-
-
 def edges_cross(e1: EdgeExtend, e2: EdgeExtend):
     if e1[0] == e2[0] or e1[0] == e2[1] or e1[1] == e2[0] or e1[1] == e2[1]:
         return False
@@ -150,6 +135,20 @@ def edges_cross(e1: EdgeExtend, e2: EdgeExtend):
     cmin, cmax = e1_span[2], e1_span[3]
     rmin, rmax = e2_span[0], e2_span[1]
     return (rmin < r < rmax) and (cmin < c < cmax)
+
+
+def edge_span(edge: EdgeExtend):
+    (_, _, (r1, c1), (r2, c2)) = edge
+    return (min(r1, r2), max(r1, r2), min(c1, c2), max(c1, c2))
+
+
+def edge_orientation(edge: EdgeExtend):
+    (_, _, (r1, c1), (r2, c2)) = edge
+    if r1 == r2:
+        return "h"
+    if c1 == c2:
+        return "v"
+    return "other"
 
 
 def check_hashi(islands: list[Island], sol: list[tuple[int, int, int]]):
@@ -408,7 +407,7 @@ def encode_hashi(
     for edge in pot_edges:
         edge_vars[edge] = (var_counter, var_counter + 1)
         var_counter += 2
-    max_edge_vars_counter = var_counter
+    # max_edge_vars_counter = var_counter # use for CardEnc
 
     # At most one bridge type per edge (can be 0 when not using the edge)
     for vx, vd in edge_vars.values():
@@ -460,13 +459,15 @@ def encode_hashi(
     """[[Phase 4]]"""
     # At least one bridge per island => at least n-1 edges
     if use_pysat:
-        # _ = CardEnc.atleast(
-        #     [x for x in range(1, max_edge_vars_counter)],
-        #     bound=n_islands - 1,
-        #     top_id=var_counter,
-        #     encoding=cardenc,
+        # from pysat.card import CardEnc
+        # cnf.extend(
+        #     CardEnc.atleast(
+        #         [x for x in range(1, max_edge_vars_counter)],
+        #         bound=n_islands - 1,
+        #         top_id=var_counter,
+        #         encoding=cardenc,
+        #     )
         # )
-        # cnf.extend(_)
         pass
     else:
         pass

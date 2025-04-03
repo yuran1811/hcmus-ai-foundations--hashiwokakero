@@ -135,16 +135,7 @@ def solve_with_astar(grid: Grid):
     """
     try:
         cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
-
-        # Handle case where there are no islands
-        if not islands:
-            if check_hashi([], []):
-                return generate_output(grid, [], [])
-            else:
-                return ""
-
-        if not hasattr(cnf, "clauses") or not cnf.clauses:
-            print("Error: CNF object does not contain clauses.")
+        if not islands or not cnf.clauses:
             return ""
 
         # Retrieve and sort the unique variables from the CNF
@@ -156,7 +147,7 @@ def solve_with_astar(grid: Grid):
 
         if len(variables) > 22:
             print(
-                f"Warning: {len(variables)} variables ({total_combinations:,} combinations) is likely too large for A* search."
+                f"[warning] - {len(variables)} variables ({total_combinations:,} combinations) is likely too large for A* search."
             )
 
         # Initialize the priority queue for A* search.
@@ -191,7 +182,7 @@ def solve_with_astar(grid: Grid):
                             return generate_output(grid, islands, hashi_solution)
                         else:
                             # print(
-                            #     "Warning: Solution failed final check_hashi despite satisfying CNF and validation."
+                            #     "[warning] - Solution failed final check_hashi despite satisfying CNF and validation."
                             # )
                             pass
                 continue
@@ -208,18 +199,13 @@ def solve_with_astar(grid: Grid):
             if nodes_expanded % 100000 == 0:
                 print(f"Expanded {nodes_expanded:,} nodes so far...", end="\r")
 
-        print(
-            f"\nExpanded all nodes ({nodes_expanded:,}) without finding a valid solution."
-        )
+        # print(
+        #     f"\nExpanded all nodes ({nodes_expanded:,}) without finding a valid solution."
+        # )
         return ""
 
     except KeyboardInterrupt:
-        print("\n> Terminating...")
-        return ""
-    except AttributeError:
-        print(
-            "\nError: encode_hashi might not have returned a CNF object with '.clauses'. Check return type."
-        )
+        print("\n> terminating...")
         return ""
     except Exception as e:
         print(f"\nAn unexpected error occurred: {e}")

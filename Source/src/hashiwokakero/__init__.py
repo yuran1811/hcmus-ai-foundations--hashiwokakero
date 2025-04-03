@@ -5,7 +5,6 @@ from solvers import (
     solve_with_pysat,
 )
 from utils import (
-    encode_pbequal,
     get_input_path,
     get_project_toml_data,
     parse_args,
@@ -15,6 +14,7 @@ from utils import (
     with_input_path,
     with_version_arg,
 )
+from utils.base import encode_pbequal_2
 
 
 def dev():
@@ -25,7 +25,8 @@ def dev():
     k = 5
 
     max_var = literals[-1]
-    clauses = encode_pbequal(literals, weights, k, max_var)
+    clauses = encode_pbequal_2(literals, weights, k, max_var)
+    print(clauses)
 
     with Glucose42(bootstrap_with=clauses) as solver:
         if solver.solve():

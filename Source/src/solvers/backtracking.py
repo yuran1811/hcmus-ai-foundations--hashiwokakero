@@ -138,12 +138,12 @@ def solve_with_backtracking(grid: Grid):
             if check_hashi(islands, sol):
                 return generate_output(grid, islands, sol)
 
-            # print("Warning: Extracted solution failed final check_hashi.")
+            # print("[warning] - Extracted solution failed final check_hashi.")
         else:
             # print("Validation of the assignment failed.")
             pass
     except KeyboardInterrupt:
-        print("\n> Terminating...")
+        print("\n> terminating...")
         return ""
     except Exception as e:
         print(f"\nAn unexpected error occurred: {e}")

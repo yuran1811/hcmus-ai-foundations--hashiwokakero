@@ -21,15 +21,7 @@ def solve_with_bruteforce(grid: Grid):
     def solve_hashi():
         try:
             cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
-
-            if not islands:
-                if check_hashi([], []):
-                    return [], []
-                else:
-                    return [], []
-
-            if not hasattr(cnf, "clauses") or not cnf.clauses:
-                # print("Error: CNF object does not contain clauses.")
+            if not islands or not cnf.clauses:
                 return [], []
 
             # Retrieve unique variables from the CNF and sort them.
@@ -46,7 +38,7 @@ def solve_with_bruteforce(grid: Grid):
 
             if len(variables) > 22:
                 print(
-                    f"Warning: {len(variables)} variables ({total_combinations:,} combinations) is likely too large for brute-force."
+                    f"[warning] - {len(variables)} variables ({total_combinations:,} combinations) is likely too large for brute-force."
                 )
 
             counter = 0
@@ -94,21 +86,16 @@ def solve_with_bruteforce(grid: Grid):
                             return hashi_solution, islands
                         else:
                             # print(
-                            #     "Warning: Solution failed final check_hashi despite satisfying CNF and validation."
+                            #     "[warning] - Solution failed final check_hashi despite satisfying CNF and validation."
                             # )
                             pass
 
-            print(
-                f"\nChecked all {total_combinations:,} assignments, no valid solution found."
-            )
+            # print(
+            #     f"\nChecked all {total_combinations:,} assignments, no valid solution found."
+            # )
 
         except KeyboardInterrupt:
             print("\n> terminating...")
-            return [], []
-        except AttributeError:
-            print(
-                "\nError: encode_hashi might not have returned a CNF object with '.clauses'. Check return type."
-            )
             return [], []
         except Exception as e:
             print(f"\nAn unexpected error occurred: {e}")
@@ -118,7 +105,6 @@ def solve_with_bruteforce(grid: Grid):
         return [], []
 
     sol, islands = solve_hashi()
-
     if not sol or not islands or not check_hashi(islands, sol):
         return ""
 
