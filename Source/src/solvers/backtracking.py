@@ -1,3 +1,6 @@
+import copy
+import traceback
+
 from __types import Grid
 from utils import (
     check_hashi,
@@ -6,18 +9,16 @@ from utils import (
     generate_output,
     validate_solution,
 )
-from collections import Counter
-import copy
-import traceback
+
 
 def dpll(clauses, assignment):
     """
     A simplified DPLL algorithm.
-    
+
     Parameters:
       clauses: list of clauses (each clause is a list of ints)
       assignment: dict mapping variable -> True/False (partial assignment)
-    
+
     Returns:
       A complete satisfying assignment (dict) or None if unsat.
     """
@@ -25,7 +26,7 @@ def dpll(clauses, assignment):
     new_clauses, new_assignment = unit_propagate(clauses, assignment)
     if new_clauses is None:
         return None  # Conflict found.
-    
+
     # 2. Pure Literal Elimination.
     pure = {}
     for clause in new_clauses:
@@ -35,7 +36,7 @@ def dpll(clauses, assignment):
                 continue
             # If first time seeing var, record its polarity.
             if var not in pure:
-                pure[var] = (lit > 0)
+                pure[var] = lit > 0
             else:
                 # If the polarity differs, mark as non-pure.
                 if pure[var] != (lit > 0):
@@ -48,9 +49,11 @@ def dpll(clauses, assignment):
     # 3. Check if every clause is satisfied.
     satisfied_all = True
     for clause in new_clauses:
-        if not any((lit > 0 and new_assignment.get(abs(lit), False)) or 
-                   (lit < 0 and not new_assignment.get(abs(lit), False))
-                   for lit in clause):
+        if not any(
+            (lit > 0 and new_assignment.get(abs(lit), False))
+            or (lit < 0 and not new_assignment.get(abs(lit), False))
+            for lit in clause
+        ):
             satisfied_all = False
             break
     if satisfied_all:
@@ -59,9 +62,11 @@ def dpll(clauses, assignment):
     # 4. Check for conflict: any clause is fully assigned and unsatisfied.
     for clause in new_clauses:
         if all(abs(lit) in new_assignment for lit in clause):
-            if not any((lit > 0 and new_assignment[abs(lit)]) or 
-                       (lit < 0 and not new_assignment[abs(lit)])
-                       for lit in clause):
+            if not any(
+                (lit > 0 and new_assignment[abs(lit)])
+                or (lit < 0 and not new_assignment[abs(lit)])
+                for lit in clause
+            ):
                 return None
 
     # 5. Choose an unassigned variable.
@@ -81,6 +86,7 @@ def dpll(clauses, assignment):
             return result
     return None
 
+
 def unit_propagate(clauses, assignment):
     """
     Performs unit propagation on a copy of the clause list and assignment.
@@ -89,7 +95,7 @@ def unit_propagate(clauses, assignment):
     changed = True
     new_assignment = assignment.copy()
     new_clauses = copy.deepcopy(clauses)
-    
+
     while changed:
         changed = False
         updated_clauses = []
@@ -99,7 +105,9 @@ def unit_propagate(clauses, assignment):
             for lit in clause:
                 var = abs(lit)
                 if var in new_assignment:
-                    if (lit > 0 and new_assignment[var]) or (lit < 0 and not new_assignment[var]):
+                    if (lit > 0 and new_assignment[var]) or (
+                        lit < 0 and not new_assignment[var]
+                    ):
                         satisfied = True
                         break
                 else:
@@ -122,61 +130,66 @@ def unit_propagate(clauses, assignment):
         new_clauses = updated_clauses
     return new_clauses, new_assignment
 
+
 def solve_with_backtracking(grid: Grid):
     """
-    Solves the Hashiwokakero puzzle by:
-      1. Encoding the puzzle into CNF via encode_hashi.
-      2. Solving the SAT problem with a DPLL-based solver.
-      3. Extracting and validating the solution, then formatting it via generate_output.
-    
-    Returns the final output (a grid with bridges drawn) if a valid solution is found,
-    or an empty string if unsatisfiable.
+    Solves the Hashiwokakero puzzle by repeatedly calling the DPLL solver
+    until a fully satisfied (including connectivity) solution is found.
     """
     try:
-        cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
+        cnf_wrapper, edge_vars, islands, variable_map = encode_hashi(
+            grid, use_pysat=True
+        )
         if not islands:
-            return ([] ,[]) if check_hashi([], []) else ""
-        if not hasattr(cnf, 'clauses') or not cnf.clauses:
+            return ([], []) if check_hashi([], []) else ""
+        if not hasattr(cnf_wrapper, "clauses") or not cnf_wrapper.clauses:
             print("Error: CNF object does not contain clauses.")
             return ""
-        
-        # Build the clause list.
-        clauses = [list(clause) for clause in cnf.clauses]
-        # Determine the set of all variables.
+
+        clauses = [list(clause) for clause in cnf_wrapper.clauses]
         all_vars = set()
         for clause in clauses:
             for lit in clause:
                 all_vars.add(abs(lit))
-        num_vars = max(all_vars) if all_vars else 0
-        
-        # For reporting, order variables by frequency.
-        var_count = Counter(abs(lit) for clause in clauses for lit in clause)
-        ordered_vars = sorted(all_vars, key=lambda v: -var_count[v])
+        ordered_vars = sorted(list(all_vars))  # Ensure consistent ordering
+
         print(f"Total unique variables: {len(ordered_vars)}")
         print(f"Total clauses: {len(clauses)}")
-        
-        # Run the DPLL solver.
-        model_assignment = dpll(clauses, {})
-        if model_assignment is None:
-            print("No satisfying assignment found.")
-            return ""
-        
-        # Build the model as a list of literals.
-        model = [var if model_assignment.get(var, False) else -var for var in sorted(ordered_vars)]
-        
-        # Validate the assignment using the provided utility functions.
-        if validate_solution(islands, edge_vars, model):
-            hashi_solution = extract_solution(model, edge_vars)
-            if check_hashi(islands, hashi_solution):
-                return generate_output(grid, islands, hashi_solution)
+
+        while True:
+            model_assignment = dpll(clauses, {})
+            if model_assignment is None:
+                print("No satisfying connected assignment found.")
+                return ""
+
+            model = [
+                var if model_assignment.get(var, False) else -var
+                for var in ordered_vars
+            ]
+
+            if validate_solution(islands, edge_vars, model):
+                hashi_solution = extract_solution(model, edge_vars)
+                if check_hashi(islands, hashi_solution):
+                    return generate_output(grid, islands, hashi_solution)
+                else:
+                    print(
+                        "Found a satisfying assignment, but it failed the final check_hashi (e.g., connectivity). Continuing search..."
+                    )
+                    # Add a blocking clause to prevent finding the same assignment again
+                    blocking_clause = [-lit for lit in model]
+                    clauses.append(blocking_clause)
             else:
-                print("Warning: Extracted solution failed final check_hashi.")
-        else:
-            print("Validation of the assignment failed.")
+                print(
+                    "Found a satisfying assignment, but it failed initial validation. Continuing search..."
+                )
+                blocking_clause = [-lit for lit in model]
+                clauses.append(blocking_clause)
+
     except KeyboardInterrupt:
         print("\n> Terminating...")
         return ""
     except Exception as e:
         print(f"\nAn unexpected error occurred: {e}")
+        traceback.print_exc()
         return ""
     return ""
