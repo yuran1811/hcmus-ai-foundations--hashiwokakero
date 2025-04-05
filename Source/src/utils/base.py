@@ -436,7 +436,7 @@ def encode_hashi(
     *,
     use_pysat: bool = False,
     use_self_pbenc: bool = False,
-):
+) -> tuple[CNF, dict[PairII, PairII], list[Island], int]:
     islands = get_islands(grid)
     n_islands = len(islands)
     island_incident: Incident = {idx: [] for idx in range(n_islands)}
