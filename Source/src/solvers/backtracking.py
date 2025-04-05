@@ -50,6 +50,12 @@ def unit_propagate(clauses: list[list[int]], assignment: dict[int, bool]):
                 new_clauses.append(unassigned_lits)
         clauses = new_clauses
 
+    literals = {lit for clause in clauses for lit in clause}
+    pure_literals = {lit for lit in literals if -lit not in literals}
+    for literal in pure_literals:
+        clauses = [clause for clause in clauses if literal not in clause]
+        assignment[abs(literal)] = literal > 0
+
     return clauses, assignment
 
 
@@ -88,6 +94,7 @@ def solve_with_backtracking(grid: Grid):
         learned_clauses: list[list[int]],
     ) -> dict[int, bool]:
         clauses, assignment = unit_propagate(clauses or [], assignment or {})
+
         if clauses is None or assignment is None:
             return {}
 

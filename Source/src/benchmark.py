@@ -1,14 +1,9 @@
-import functools
 import os
-import time
-import tracemalloc
-from enum import Enum
 from typing import Callable
 
 import matplotlib.pyplot as plt
 
-from __types import Grid
-from constants.path import FIG_DIR, INP_DIR, OUT_DIR
+from constants.path import FIG_DIR, OUT_DIR
 from solvers import (
     solve_with_astar,
     solve_with_backtracking,
@@ -16,10 +11,12 @@ from solvers import (
     solve_with_pysat,
 )
 from utils import (
+    Criteria,
+    benchmark,
     byte_convert,
     get_project_toml_data,
     parse_args,
-    parse_input,
+    tests_prepare,
     time_convert,
     with_export_output,
     with_metrics,
@@ -28,7 +25,7 @@ from utils import (
 TEST_SETS = [3, 5, 7, 9, 11, 13, 17, 20]
 SOLVERS: list[tuple[str, Callable, list[int], bool]] = [
     ("pysat", solve_with_pysat, TEST_SETS, True),
-    ("astar", solve_with_astar, TEST_SETS[:0], False),
+    ("astar", solve_with_astar, TEST_SETS[:6], False),
     ("backtracking", solve_with_backtracking, TEST_SETS[:6], False),
     ("bruteforce", solve_with_bruteforce, TEST_SETS[:0], False),
 ]
@@ -36,54 +33,12 @@ SOLVER_COUNT = len(SOLVERS)
 PASSED_COUNT = [0] * SOLVER_COUNT
 
 
-class Criteria(Enum):
-    TIME = (1, "solving time", "time (ms)")
-    MEMORY = (2, "peak memory", "memory (KB)")
-
-
-def profile(func: Callable):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        tracemalloc.start()
-        start_time = time.perf_counter()
-
-        ret = func(*args, **kwargs)
-        result: str = ret if ret else ""
-
-        elapsed_time = time.perf_counter() - start_time
-        current, peak = tracemalloc.get_traced_memory()
-        tracemalloc.stop()
-
-        return result, elapsed_time, current, peak
-
-    return wrapper
-
-
-@profile
-def benchmark(solver_func, grid: Grid):
-    return solver_func(grid)
-
-
-def tests_prepare():
-    _: list[tuple[str, str, Grid]] = []
-    for s in TEST_SETS:
-        size = f"{s}x{s}"
-        dir = os.path.join(INP_DIR, size)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-
-        for inp_file in sorted(os.listdir(dir)):
-            path = os.path.join(dir, inp_file)
-            _.append((f"{size}/{inp_file}", path, parse_input(path)))
-    return _
-
-
 def visualize(
     plot_data: dict[str, list[tuple[str, float, float, bool]]], criteria: Criteria
 ):
     data = list(plot_data.items())
 
-    num_col = 3
+    num_col = 2
     num_row = len(TEST_SETS) // num_col + len(TEST_SETS) % num_col
     _, axs = plt.subplots(num_row, num_col, figsize=(5 * num_col, 3 * num_row))
 
@@ -160,7 +115,7 @@ if __name__ == "__main__":
     plot_data: dict[str, list[tuple[str, float, float, bool]]] = {}
 
     print("+ Testing")
-    tests = tests_prepare()
+    tests = tests_prepare(TEST_SETS)
     failed_tests = {name: [] for name, _, _, _ in SOLVERS}
     for test_name, _, grid in tests:
         print(f"  > exec: {test_name}")

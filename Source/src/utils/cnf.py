@@ -3,7 +3,8 @@ from pysat.pb import EncType as PBEncType
 
 from __types import Grid
 
-from .base import encode_hashi, parse_input
+from .base import encode_hashi
+from .data import parse_input
 
 
 class CNFGenerator:
