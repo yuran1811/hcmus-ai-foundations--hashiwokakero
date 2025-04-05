@@ -12,14 +12,13 @@ from utils import (
 
 def solve_with_pysat(grid: Grid):
     def solve_hashi():
-        for pbenc in range(7):
-            for cardenc in range(10):
+        for pbenc in [1, 0, 2]:
+            for cardenc in range(1):
                 try:
                     cnf, edge_vars, islands, _ = encode_hashi(
                         grid, pbenc, cardenc, use_pysat=True
                     )
                     with Glucose42(bootstrap_with=cnf) as solver:
-                        # print(f"solve with\n  pbenc: {pbenc}\n  cardenc: {cardenc}")
                         while solver.solve():
                             model = solver.get_model()
                             num_clauses = solver.nof_clauses()
@@ -36,6 +35,7 @@ def solve_with_pysat(grid: Grid):
                     print("> terminating...")
                     return [], []
                 except Exception:
+                    print("err", pbenc)
                     continue
 
         return [], []
