@@ -11,7 +11,7 @@ from utils import (
 )
 
 
-def dpll(clauses, assignment):
+def dpll(clauses: list[list[int]], assignment: dict[int, bool]):
     """
     A simplified DPLL algorithm.
 
@@ -32,7 +32,7 @@ def dpll(clauses, assignment):
     for clause in new_clauses:
         for lit in clause:
             var = abs(lit)
-            if var in new_assignment:
+            if new_assignment is not None and var in new_assignment:
                 continue
             # If first time seeing var, record its polarity.
             if var not in pure:
@@ -43,13 +43,13 @@ def dpll(clauses, assignment):
                     pure[var] = None
     # Assign pure literals.
     for var, val in pure.items():
-        if val is not None and var not in new_assignment:
+        if new_assignment and val is not None and var not in new_assignment:
             new_assignment[var] = val
 
     # 3. Check if every clause is satisfied.
     satisfied_all = True
     for clause in new_clauses:
-        if not any(
+        if new_assignment and not any(
             (lit > 0 and new_assignment.get(abs(lit), False))
             or (lit < 0 and not new_assignment.get(abs(lit), False))
             for lit in clause
@@ -61,7 +61,7 @@ def dpll(clauses, assignment):
 
     # 4. Check for conflict: any clause is fully assigned and unsatisfied.
     for clause in new_clauses:
-        if all(abs(lit) in new_assignment for lit in clause):
+        if new_assignment and all(abs(lit) in new_assignment for lit in clause):
             if not any(
                 (lit > 0 and new_assignment[abs(lit)])
                 or (lit < 0 and not new_assignment[abs(lit)])
@@ -71,7 +71,7 @@ def dpll(clauses, assignment):
 
     # 5. Choose an unassigned variable.
     all_vars = set(abs(lit) for clause in new_clauses for lit in clause)
-    unassigned = list(all_vars - set(new_assignment.keys()))
+    unassigned = list(all_vars - set(new_assignment.keys() if new_assignment else []))
     if not unassigned:
         return new_assignment
     # Simple heuristic: choose the smallest unassigned variable.
@@ -79,7 +79,7 @@ def dpll(clauses, assignment):
 
     # 6. Recurse with chosen variable assigned True and then False.
     for value in [True, False]:
-        assignment_copy = new_assignment.copy()
+        assignment_copy = new_assignment.copy() if new_assignment else {}
         assignment_copy[chosen] = value
         result = dpll(new_clauses, assignment_copy)
         if result is not None:
@@ -87,7 +87,7 @@ def dpll(clauses, assignment):
     return None
 
 
-def unit_propagate(clauses, assignment):
+def unit_propagate(clauses: list[list[int]], assignment: dict[int, bool]):
     """
     Performs unit propagation on a copy of the clause list and assignment.
     Returns (new_clauses, new_assignment) or (None, None) if a conflict is detected.
