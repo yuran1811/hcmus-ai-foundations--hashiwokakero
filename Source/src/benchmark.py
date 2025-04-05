@@ -8,21 +8,29 @@ from typing import Callable
 import matplotlib.pyplot as plt
 
 from __types import Grid
-from constants.path import FIG_DIR, INP_DIR
+from constants.path import FIG_DIR, INP_DIR, OUT_DIR
 from solvers import (
     solve_with_astar,
     solve_with_backtracking,
     solve_with_bruteforce,
     solve_with_pysat,
 )
-from utils import byte_convert, parse_input, time_convert
+from utils import (
+    byte_convert,
+    get_project_toml_data,
+    parse_args,
+    parse_input,
+    time_convert,
+    with_export_output,
+    with_metrics,
+)
 
-TEST_SETS = [7, 9, 11, 13, 17, 20]
-SOLVERS: list[tuple[str, Callable, list[int]]] = [
-    ("pysat", solve_with_pysat, TEST_SETS),
-    ("astar", solve_with_astar, TEST_SETS[:0]),
-    ("backtracking", solve_with_backtracking, TEST_SETS[:4]),
-    ("bruteforce", solve_with_bruteforce, TEST_SETS[:0]),
+TEST_SETS = [3, 5, 7, 9, 11, 13, 17, 20]
+SOLVERS: list[tuple[str, Callable, list[int], bool]] = [
+    ("pysat", solve_with_pysat, TEST_SETS, True),
+    ("astar", solve_with_astar, TEST_SETS[:0], False),
+    ("backtracking", solve_with_backtracking, TEST_SETS[:6], False),
+    ("bruteforce", solve_with_bruteforce, TEST_SETS[:0], False),
 ]
 SOLVER_COUNT = len(SOLVERS)
 PASSED_COUNT = [0] * SOLVER_COUNT
@@ -53,7 +61,7 @@ def profile(func: Callable):
 
 @profile
 def benchmark(solver_func, grid: Grid):
-    return bool(solver_func(grid))
+    return solver_func(grid)
 
 
 def tests_prepare():
@@ -75,7 +83,9 @@ def visualize(
 ):
     data = list(plot_data.items())
 
-    _, axs = plt.subplots(2, 3, figsize=(15, 10))
+    num_col = 3
+    num_row = len(TEST_SETS) // num_col + len(TEST_SETS) % num_col
+    _, axs = plt.subplots(num_row, num_col, figsize=(5 * num_col, 3 * num_row))
 
     x_values = [
         x for x in sorted([x for x, _ in data], key=lambda x: int(x.split("x")[0]))
@@ -102,8 +112,8 @@ def visualize(
 
     last_from = 0
     for i, size in enumerate(TEST_SETS):
-        ri = i // 3
-        ci = i % 3
+        ri = i // num_col
+        ci = i % num_col
 
         y_bar = [v for k, v in y_values if k.startswith(f"{size}x{size}")]
         x_bar = x_bars[last_from : last_from + len(y_bar)]
@@ -140,32 +150,57 @@ def visualize(
 
 
 if __name__ == "__main__":
+    __toml = get_project_toml_data()
+    args = parse_args(
+        prog=__toml["name"],
+        desc=__toml["description"],
+        wrappers=[with_metrics, with_export_output],
+    )
+
     plot_data: dict[str, list[tuple[str, float, float, bool]]] = {}
 
     print("+ Testing")
     tests = tests_prepare()
-    failed_tests = {name: [] for name, _, _ in SOLVERS}
-    for name, path, grid in tests:
-        print(f"  > exec: {name}")
-        plot_data[name] = []
+    failed_tests = {name: [] for name, _, _, _ in SOLVERS}
+    for test_name, _, grid in tests:
+        print(f"  > exec: {test_name}")
+        plot_data[test_name] = []
 
-        for i, (algo, solver, size) in enumerate(SOLVERS):
-            if len(size) == 0 or not any(name.startswith(f"{_}x{_}") for _ in size):
-                plot_data[name].append((algo, 0, 0, False))
+        for i, (algo, solver, size, with_export) in enumerate(SOLVERS):
+            if len(size) == 0 or not any(
+                test_name.startswith(f"{_}x{_}") for _ in size
+            ):
+                plot_data[test_name].append((algo, 0, 0, False))
                 continue
 
-            solved, t, _, peak_mem = benchmark(solver, grid)
-            plot_data[name].append((algo, t * 1000, peak_mem / 1024, bool(solved)))
-            if not bool(solved):
-                failed_tests[algo].append(name)
-            PASSED_COUNT[i] += bool(solved)
+            sol, t, _, peak_mem = benchmark(solver, grid)
+            is_solved = bool(sol)
+
+            if not is_solved:
+                failed_tests[algo].append(test_name)
+            else:
+                if args.export and with_export:
+                    map = test_name.split("/")[0]
+                    test_idx = test_name.split("/")[1].split("-")[1]
+                    out_file = os.path.join(OUT_DIR, map, algo, f"output-{test_idx}")
+                    os.makedirs(
+                        os.path.join(OUT_DIR, map, algo),
+                        exist_ok=True,
+                    )
+
+                    with open(out_file, "w") as f:
+                        f.write("\n".join([" ".join(x) for x in sol]))
+                        pass
+
+            plot_data[test_name].append((algo, t * 1000, peak_mem / 1024, is_solved))
+            PASSED_COUNT[i] += is_solved
 
             print(
-                f"    | {algo[:5]}: {bool(solved)}\t{time_convert(t)},{byte_convert(peak_mem)}"
+                f"    | {algo[:5]}: {is_solved}\t{time_convert(t)},{byte_convert(peak_mem)}"
             )
 
     print("\n+ Summary")
-    for i, (algo, solver, size) in enumerate(SOLVERS):
+    for i, (algo, solver, size, _) in enumerate(SOLVERS):
         used_tests = (
             [x for x in tests if any([x[0].startswith(f"{_}x{_}") for _ in size])]
             if size
@@ -179,6 +214,7 @@ if __name__ == "__main__":
                 else "",
             )
 
-    print("\n+ Plotting")
-    visualize(plot_data, Criteria.TIME)
-    visualize(plot_data, Criteria.MEMORY)
+    if args.metrics:
+        print("\n+ Plotting")
+        visualize(plot_data, Criteria.TIME)
+        visualize(plot_data, Criteria.MEMORY)
