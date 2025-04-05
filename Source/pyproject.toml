@@ -30,6 +30,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff.lint]
 extend-select = ["W", "E"]
+ignore = ["E501"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
