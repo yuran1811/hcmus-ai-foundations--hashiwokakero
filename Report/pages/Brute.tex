@@ -1,0 +1,68 @@
+\subsection{Brute-Force}
+
+\noindent Brute-force search is a straightforward but computationally intensive method for solving CNF problems. In this approach, the algorithm systematically explores all possible truth assignments for the CNF variables, checking each complete assignment to determine whether it satisfies all clauses. While this guarantees that a solution will be found if one exists, it becomes impractical as the number of variables increases, due to the exponential growth of the search space. Brute-force does not leverage any heuristics or early pruning, making it inefficient for large or complex instances. However, for small puzzles with limited variables, brute-force can still serve as a simple and reliable baseline for correctness verification.
+\subsubsection{Pseudocode}
+\begin{algorithm}[H]
+	\caption{Brute-Force Search for Hashiwokakero (\textit{grid})}
+	\label{alg:brute_force_hashiwokakero}
+	\begin{algorithmic}[1]
+		\State \textbf{Input:} \textit{grid} (Hashiwokakero puzzle grid)
+		\State \textbf{Output:} Valid solution or failure
+		\State $(cnf, edge\_vars, islands, variables) \gets encode\_hashi(grid)$
+		\If {no islands or \textit{cnf.clauses} is empty}
+		\State \Return generate\_output(grid, \{\}, \{\})
+		\EndIf
+		\State Build mapping \textit{var\_to\_index} from \textit{variables}
+		\ForAll {possible boolean assignments of \textit{variables}}
+		\State Evaluate all clauses in \textit{cnf.clauses}
+		\If {every clause is satisfied}
+		\State model $\gets$ build model from the assignment
+		\If {validate\_solution(islands, edge\_vars, model) \textbf{and} check\_hashi(islands, model)}
+		\State \Return generate\_output(grid, islands, model)
+		\EndIf
+		\EndIf
+		\EndFor
+		\State \Return failure (no valid assignment found)
+	\end{algorithmic}
+\end{algorithm}
+
+
+\subsubsection{Implementation}
+\begin{itemize}
+	\item \textbf{encode\_hashi:} Transforms the Hashiwokakero grid into a CNF formula, along with a list of islands, variables, and edge constraints. This encoding allows the puzzle to be interpreted as a SAT problem.
+
+	\item \textbf{solve\_with\_bruteforce:} Iterates over all possible truth assignments to the CNF variables. For each assignment, it checks whether all clauses are satisfied and whether the resulting solution forms a valid Hashi configuration.
+
+	\item \textbf{validate\_solution:} Ensures that a satisfying assignment from the SAT check also satisfies puzzle-specific constraints such as island degree and bridge rules.
+
+	\item \textbf{extract\_solution:} Translates a valid variable assignment into a bridge configuration representing connections between islands.
+
+	\item \textbf{check\_hashi:} Final validation step that confirms the connectivity and correctness of the bridge layout based on the Hashiwokakero rules.
+
+	\item \textbf{generate\_output:} Converts the verified bridge solution into the desired output format (e.g., a solved puzzle grid).
+\end{itemize}
+
+\subsubsection{Time and Space Complexity}
+\textbf{Time Complexity:} In the worst case, the brute-force search examines all possible assignments, leading to a time complexity of \(O(2^{|variables|} )\), where \(|variables|\) is the number of CNF variables. This exponential growth makes brute-force impractical for large instances.
+
+\textbf{Space Complexity:} The space complexity is \(O(|variables|)\), since at any given time the algorithm only needs to store the current assignment (a tuple of booleans) and minimal additional bookkeeping. This ensures that while time requirements may be prohibitive, the memory footprint remains relatively small.
+
+\subsection*{Strengths}
+\begin{itemize}
+	\item \textbf{Conceptual Simplicity:} The brute-force method is straightforward and easy to implement, requiring minimal algorithmic complexity or heuristics.
+	\item \textbf{Guaranteed Completeness:} It explores all possible assignments, ensuring that if a valid solution exists, it will eventually be found.
+	\item \textbf{Useful for Small Instances:} For small puzzles with limited variables, brute-force performs adequately and can serve as a correctness benchmark for more advanced solvers.
+\end{itemize}
+
+\subsection*{Limitations}
+\begin{itemize}
+	\item \textbf{Exponential Time Growth:} The algorithm suffers from poor scalability due to its \(O(2^n)\) time complexity, making it infeasible for puzzles with more than a few dozen variables.
+	\item \textbf{No Pruning or Heuristics:} Unlike more sophisticated methods, brute-force lacks any optimization strategy to reduce the search space or prioritize promising paths.
+	\item \textbf{Inefficient for Real-Time Use:} Due to its exhaustive nature, the algorithm is too slow for practical use in interactive or large-scale puzzle solving.
+\end{itemize}
+
+\subsection*{Conclusion}
+The brute-force solver for Hashiwokakero, while theoretically complete, is limited in practical usability due to exponential runtime. It is best suited for validating small puzzle instances or serving as a baseline for correctness. Its simplicity makes it easy to understand and implement, but the lack of efficiency and scalability necessitates the adoption of smarter strategies like heuristic search or SAT-based optimizations for larger or more complex puzzles.
+
+
+

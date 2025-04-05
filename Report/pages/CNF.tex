@@ -1,0 +1,66 @@
+\section{CNF}
+\subsection{Logical principles for generating CNFs}
+\begin{itemize}
+	\item \textbf{Variables}
+	      \begin{flushleft}
+		      For every pair of adjacent islands \(A\) and \(B\), define two Boolean variables:
+		      \begin{itemize}
+			      \item \(x^1_{A,B}\): A single bridge exists between islands \(A\) and \(B\).
+			      \item \(x^2_{A,B}\): A double bridge exists between islands \(A\) and \(B\).
+		      \end{itemize}
+	      \end{flushleft}
+	\item \textbf{Constraints}
+	      \begin{itemize}
+		      \item At most 2 bridges between two islands, that means there can be 0, 1, or 2 bridges between two islands.
+		      \item The number of bridges connected to an island must equal the island's number.
+		      \item No crossing bridges
+	      \end{itemize}
+	\item \textbf{Special cases}
+	      \begin{itemize}
+		      \item \textbf{One way connection:} If an island has only one neighbor in a cardinal direction (north, south, east, or west), it must connect to that neighbor—using either a single or double bridge based on its required bridge count.
+		      \item \textbf{Do not connect islands of 1 between themselves:} If a 1-bridge island has multiple connection options but only one leads to an island with \(\ge 2\) bridges, that connection must be made. Otherwise, two 1-bridge islands might link to each other and become isolated, breaking the rule that all islands must be part of a single connected group.
+		      \item \textbf{Between two islands of 2, no double bridge can be placed between them:} If two islands both have the degree of 2, they can only connect with a single bridge. If a double bridge is placed between them, it would create a situation where the whole map is separated into at least 2 components, and that situation violates the game's rule.
+		      \item \textbf{Six bridges with special neighbors:} An island with 6 bridges can sometimes follow the same logic as those with 7 or 8. If it has neighbors in only 3 directions, all bridges must be drawn and doubled to reach 6. If one neighbor is a 1, then only 5 bridges remain for the other 3 directions. Since two directions doubled give just 4 bridges, each direction must have at least one bridge, allowing one bridge to be drawn in all three directions immediately.
+		      \item \textbf{Number 7:} An island labeled 7 means one of the 8 possible bridges is missing—so every direction must have at least one bridge. It's safe to draw one bridge in all four directions, then later decide which direction needs a second bridge.
+		      \item \textbf{Number 8:} An island can have at most 8 bridges—2 in each of the 4 directions (north, south, east, west). So, if an island is labeled with 8, all its possible bridges must be drawn immediately, as they are guaranteed to be part of the solution.
+	      \end{itemize}
+\end{itemize}
+
+\subsection{Formulate CNF Constraints}
+\begin{itemize}
+	\item \textbf{Mutual Exclusion}
+	      \begin{flushleft}
+		      Ensure that two variables cannot be true at the same time:
+		      \begin{equation*}
+			      \lnot x^1_{A,B} \lor \lnot x^2_{A,B}
+		      \end{equation*}
+	      \end{flushleft}
+	\item \textbf{Island Degree Constraints}
+	      \begin{flushleft}
+		      For each island \(A\) with number \(n\), the sum of bridges connected to it must equal \(n\) \\
+		      Let \(Adj(A)\) be the set of islands adjacent to \(A\). For example, if \(A\) connects to \(B, C, D\), then:
+		      \begin{equation*}
+			      \sum_{X \in Adj(A)} x^1_{A,X} + 2 \cdot x^2_{A,X} = n
+		      \end{equation*}
+		      This can be encoded using \textbf{pseudo-Boolean constraints} (e.g., \verb|PBEnc.equals| in PySAT).\\
+		      We've also implemented manual encoding versions for this constraint in two diffrent approaches (`Tseytin Transformation' and `Dynamic Programming'), but it produces a large amount of clauses (larger than PySAT's encoding does), so we've used the \verb|PBEnc| instead of our own implementations (they still remains in the source, but not be used as default).\\
+	      \end{flushleft}
+	\item \textbf{No crossing bridges}
+	      \begin{flushleft}
+		      For every horizontal bridge \((A,B)\) and vertical bridge \((C,D)\) that cross, add clauses to block coexistence:
+		      \begin{gather*}
+			      \lnot x^1_{A,B} \lor \lnot x^1_{C,D} \\
+			      \lnot x^1_{A,B} \lor \lnot x^2_{C,D} \\
+			      \lnot x^2_{A,B} \lor \lnot x^1_{C,D} \\
+			      \lnot x^2_{A,B} \lor \lnot x^2_{C,D}
+		      \end{gather*}
+	      \end{flushleft}
+	\item \textbf{Special cases}
+	      \begin{flushleft}
+		      \begin{itemize}
+			      \item \textbf{Do not connect islands of 1 between themselves:} Mark the variable of both single and double bridges as negative.
+			      \item \textbf{Between two islands of 2, no double bridge can be placed between them:} Just mark the variable of double bridge as negative.
+			      \item \textbf{Remain special cases:} Just follow the rules each case and mark the variables as positive or negative.\\
+		      \end{itemize}
+	      \end{flushleft}
+\end{itemize}
