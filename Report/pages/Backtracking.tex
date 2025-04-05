@@ -1,0 +1,46 @@
+\subsection{Backtracking with DPLL-based SAT Solver}
+\noindent The backtracking algorithm used for solving Hashiwokakero puzzles is based on a simplified DPLL (Davis–Putnam–Logemann–Loveland) SAT solver. The puzzle is first encoded into CNF form, and then a recursive backtracking search is employed to find a satisfying assignment of Boolean variables. This approach systematically explores the space of assignments and applies inference rules like unit propagation and pure literal elimination to prune inconsistent paths early, improving efficiency over naïve brute force methods.
+
+\subsubsection{Implementation Details}
+\begin{itemize}
+	\item \textbf{unit\_propagate():}
+	      \begin{flushleft}
+		      This function iteratively applies unit clause inference.\\ When a clause has only one unassigned literal, it forces the corresponding variable to satisfy the clause, reducing the search space.
+	      \end{flushleft}
+	\item \textbf{dpll():}
+	      \begin{flushleft}
+		      The core recursive backtracking function. It applies unit propagation and pure literal elimination before branching.\\ For each unassigned variable, it tries both True and False values recursively until it finds a satisfying assignment or concludes unsatisfiability.
+	      \end{flushleft}
+	\item \textbf{solve\_with\_backtracking():}
+	      \begin{flushleft}
+		      Encodes the puzzle into CNF, calls the DPLL solver, and if a model is found, it validates and extracts the solution using utility functions like \textit{validate\_solution} and \textit{generate\_output}.
+	      \end{flushleft}
+\end{itemize}
+
+\subsubsection{Inference Techniques} The algorithm integrates classical SAT-solving inference techniques to enhance performance:
+\begin{itemize}
+	\item \textbf{Unit Propagation:} Forces assignments based on clauses with only one remaining unassigned literal.
+	\item \textbf{Pure Literal Elimination:} Assigns values to literals that always appear with the same polarity (positive or negative) across all clauses.
+\end{itemize}
+
+\subsubsection{Time and Space Complexity}
+\textbf{Time Complexity:} In the worst case, the algorithm explores all possible assignments, resulting in \(O(2^n)\) time complexity, where \(n\) is the number of variables. However, unit propagation and pure literal elimination help prune large portions of the search tree.
+
+\textbf{Space Complexity:} \(O(n+m)\), where \(n\) is the number of variables and \(m\) is the number of clauses. Additional space is used to store the recursive call stack and intermediate assignments during backtracking.
+
+\subsection*{Strengths}
+\begin{itemize}
+    \item \textbf{High Performance with DPLL:} The backtracking solver, now integrated with the DPLL-based approach, can solve puzzles with impressive speed and efficiency, even for large instances, significantly improving performance over the base version.
+    \item \textbf{Scalability in Size:} The DPLL-enhanced solver can handle large puzzle sizes effectively, maintaining high performance across a wide range of problem dimensions.
+    \item \textbf{Simplicity of the Base Algorithm:} The core backtracking logic is simple to implement, providing an easy starting point for logic puzzle solving, though the performance of this base approach is not optimal.
+\end{itemize}
+
+\subsection*{Limitations}
+\begin{itemize}
+    \item \textbf{Implementation Complexity with DPLL:} The DPLL-based approach, while offering superior performance, is more advanced to implement and debug. It requires careful handling of SAT-solving techniques like unit propagation and pure literal elimination, which can be error-prone.
+    \item \textbf{Base Algorithm Performance:} While the base backtracking algorithm is easy to implement, its performance is poor compared to the DPLL-enhanced version, making it unsuitable for large or complex puzzles.
+    \item \textbf{Debugging Difficulty in DPLL:} Debugging issues in the DPLL-based version is more challenging due to its abstract nature, making it harder to trace failures compared to more traditional, step-by-step solvers.
+\end{itemize}
+
+\subsection*{Conclusion}
+The backtracking solver, when enhanced with the DPLL algorithm, represents a significant improvement in terms of performance and scalability for solving logic puzzles. The DPLL-based approach enables the solver to handle larger problem instances efficiently, achieving impressive speed compared to the base backtracking method. While the base algorithm remains easy to implement and serves as a simple foundation for puzzle solving, its performance is insufficient for more complex problems. On the other hand, the DPLL version, though more advanced and challenging to implement, offers a much more powerful solution.

@@ -10,11 +10,7 @@
         \State \textbf{Output:} Solution to the puzzle or failure
         \State Encode the puzzle into CNF: \textit{cnf, edge\_vars, islands, variables} $\gets$ \textit{encode\_hashi(grid)}
         \If {no islands exist}
-        \If {\textit{check\_hashi([], [])}}
-        \State \Return \textit{generate\_output(grid, [], [])}
-        \Else
         \State \Return failure
-        \EndIf
         \EndIf
         \State Initialize priority queue: \textit{open\_list} $\gets$ [(initial\_state)]
         \State Initialize \textit{nodes\_expanded} $\gets$ 0
@@ -69,3 +65,25 @@ Once a complete assignment is reached, the algorithm verifies that it satisfies 
 \textbf{Time Complexity:} \( O(b^d) \) in the worst case, where b is the branching factor and d is the solution depth. However, a well-designed heuristic significantly reduces the search space. If the heuristic is admissible and consistent, A* efficiently finds an optimal solution.
 
 \textbf{Space Complexity:} \( O(b^d) \), as the algorithm stores all generated nodes in memory. This can be a limiting factor for large problem instances but ensures completeness and optimality.
+
+
+
+\subsection*{Strengths}
+\begin{itemize}
+    \item \textbf{Efficient Search:} A* narrows down the search space using a heuristic function, prioritizing more promising configurations. This makes it much faster than brute-force search, particularly for puzzles of moderate size.
+    \item \textbf{Optimality:} When using an admissible heuristic (one that does not overestimate the cost), A* guarantees that the solution found will be optimal, providing the best possible configuration.
+    \item \textbf{Scalability:} The use of heuristics helps A* scale better than brute-force algorithms, as it avoids exploring irrelevant or unlikely configurations. It can handle puzzles of increasing size more efficiently.
+    \item \textbf{Flexibility:} The heuristic can be adapted to different puzzle constraints, allowing for more customization based on specific requirements of the puzzle or variations of Hashiwokakero.
+\end{itemize}
+
+\subsection*{Limitations}
+\begin{itemize}
+    \item \textbf{Complex Heuristic Design:} Designing an effective heuristic that accurately reflects the puzzle's complexity and constraints can be challenging. A poorly designed heuristic may lead to inefficient searches or suboptimal solutions.
+    \item \textbf{Memory Usage:} A* requires storing a large number of states in memory as it explores the search space. This can lead to high memory consumption, especially for larger puzzles with many possible configurations.
+    \item \textbf{Computational Cost:} Despite its more efficient search compared to brute-force, A* can still be computationally expensive, particularly for large puzzles. The evaluation of multiple potential configurations and heuristic calculations can lead to high computational overhead.
+    \item \textbf{Dependence on Heuristic Quality:} The effectiveness of A* is directly tied to the quality of the heuristic function. If the heuristic is poorly chosen, the algorithm may perform poorly or even fail to find an optimal solution within a reasonable time frame.
+\end{itemize}
+
+\subsection*{Conclusion}
+The A* algorithm, when applied to solving the Hashiwokakero puzzle using a well-designed heuristic, provides a significantly more efficient and scalable approach compared to brute-force methods. By utilizing heuristics such as remaining bridges and constraint satisfaction, A* focuses the search on promising configurations, reducing unnecessary exploration of infeasible states. The algorithm guarantees optimality if an admissible heuristic is used and effectively handles the constraints of the puzzle. However, its success depends heavily on the quality of the heuristic and the complexity of the puzzle. While it offers a powerful solution for medium-sized puzzles, larger instances may still pose challenges due to high memory and computation costs.
+
