@@ -143,7 +143,7 @@ def solve_with_backtracking(grid: Grid):
         if not islands:
             return ([], []) if check_hashi([], []) else ""
         if not hasattr(cnf_wrapper, "clauses") or not cnf_wrapper.clauses:
-            print("Error: CNF object does not contain clauses.")
+            # print("Error: CNF object does not contain clauses.")
             return ""
 
         clauses = [list(clause) for clause in cnf_wrapper.clauses]
@@ -153,13 +153,10 @@ def solve_with_backtracking(grid: Grid):
                 all_vars.add(abs(lit))
         ordered_vars = sorted(list(all_vars))  # Ensure consistent ordering
 
-        print(f"Total unique variables: {len(ordered_vars)}")
-        print(f"Total clauses: {len(clauses)}")
-
         while True:
             model_assignment = dpll(clauses, {})
             if model_assignment is None:
-                print("No satisfying connected assignment found.")
+                # print("No satisfying connected assignment found.")
                 return ""
 
             model = [
@@ -172,21 +169,15 @@ def solve_with_backtracking(grid: Grid):
                 if check_hashi(islands, hashi_solution):
                     return generate_output(grid, islands, hashi_solution)
                 else:
-                    print(
-                        "Found a satisfying assignment, but it failed the final check_hashi (e.g., connectivity). Continuing search..."
-                    )
                     # Add a blocking clause to prevent finding the same assignment again
                     blocking_clause = [-lit for lit in model]
                     clauses.append(blocking_clause)
             else:
-                print(
-                    "Found a satisfying assignment, but it failed initial validation. Continuing search..."
-                )
                 blocking_clause = [-lit for lit in model]
                 clauses.append(blocking_clause)
 
     except KeyboardInterrupt:
-        print("\n> Terminating...")
+        print("\n> terminating...")
         return ""
     except Exception as e:
         print(f"\nAn unexpected error occurred: {e}")
