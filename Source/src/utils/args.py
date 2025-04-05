@@ -23,6 +23,24 @@ def with_input_path(parser: ArgumentParser):
     )
 
 
+def with_export_output(parser: ArgumentParser):
+    parser.add_argument(
+        "-e",
+        "--export",
+        help="Export result to output",
+        action="store_true",
+    )
+
+
+def with_metrics(parser: ArgumentParser):
+    parser.add_argument(
+        "-m",
+        "--metrics",
+        help="Export metrics images",
+        action="store_true",
+    )
+
+
 def parse_args(*, prog: str, desc: str, wrappers: list):
     parser = ArgumentParser(
         prog=prog,

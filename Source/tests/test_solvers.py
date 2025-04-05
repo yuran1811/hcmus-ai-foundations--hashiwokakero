@@ -1,5 +1,5 @@
 from solvers import solve_with_pysat
-from utils import get_input_path, parse_input
+from utils.data import get_input_path, parse_input
 
 
 def test_pysat_solver():

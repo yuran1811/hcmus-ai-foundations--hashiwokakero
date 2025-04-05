@@ -5,11 +5,15 @@ from solvers import (
     solve_with_pysat,
 )
 from utils import (
+    encode_hashi,
+    extract_solution,
+    generate_output,
     get_input_path,
     get_project_toml_data,
     parse_args,
     parse_input,
     prettify_output,
+    validate_solution,
     with_algo,
     with_input_path,
     with_version_arg,
@@ -17,16 +21,38 @@ from utils import (
 
 
 def dev():
-    pass
+    from pysat.solvers import Glucose42
+
+    grid = parse_input(get_input_path(20, 4))
+    cnf, edge_vars, islands, _ = encode_hashi(
+        grid, use_pysat=True, use_self_pbenc=False
+    )
+    print(len(cnf.clauses))
+    # print("\n", cnf.clauses, "\n")
+
+    with Glucose42(bootstrap_with=cnf) as solver:
+        while solver.solve():
+            model = solver.get_model()
+            num_clauses = solver.nof_clauses()
+            if not model or (num_clauses and num_clauses > len(cnf.clauses)):
+                break
+
+            # print(model[: len(edge_vars) * 2])
+
+            if validate_solution(islands, edge_vars, model):
+                prettify_output(
+                    generate_output(grid, islands, extract_solution(model, edge_vars))
+                )
+                return
+
+            solver.add_clause([-x for x in model])
 
 
 def solve(solver, file_path: str = get_input_path(7, 1)):
     try:
-        output = solver(parse_input(file_path))
-        prettify_output(output)
+        prettify_output(solver(parse_input(file_path)))
     except Exception as _:
-        print(f"[error]: {_}")
-        return
+        print(f"[error]::{_}")
 
 
 def main() -> int:

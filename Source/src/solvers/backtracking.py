@@ -1,137 +1,160 @@
+import traceback
+from collections import Counter
+
 from __types import Grid
-from utils import encode_hashi
+from utils import (
+    check_hashi,
+    encode_hashi,
+    extract_solution,
+    generate_output,
+    validate_solution,
+)
 
 
-def solve_with_backtracking(grid: Grid):
-    cnf, _, _, var_counter = encode_hashi(grid)
+def unit_propagate(clauses: list[list[int]], assignment: dict[int, bool]):
+    changed = True
+    while changed:
+        changed = False
+        new_clauses: list[list[int]] = []
+        for clause in clauses:
+            unassigned_lits: list[int] = []
+            satisfied = False
+            for lit in clause:
+                var = abs(lit)
+                if var in assignment:
+                    if (lit > 0 and assignment[var]) or (
+                        lit < 0 and not assignment[var]
+                    ):
+                        satisfied = True
+                        break
+                else:
+                    unassigned_lits.append(lit)
 
-    variables = list(range(1, var_counter))
-    assignment = {_: False for _ in variables}
-    clause_list = [tuple(_) for _ in cnf.clauses]  # Convert clauses to tuples
+            if satisfied:
+                continue
 
-    # Precompute for each variable the clauses it appears in
-    var_to_clauses = {_: [] for _ in variables}
-    for idx, clause in enumerate(clause_list):
-        for lit in clause:
-            var = abs(lit)
-            var_to_clauses[var].append(idx)
+            if not unassigned_lits:
+                return None, None  # Conflict
 
-    # Pure literal elimination
-    pure = {}
-    for var in variables:
-        pos = any(
-            lit > 0 for clause in clause_list for lit in clause if abs(lit) == var
-        )
-        neg = any(
-            lit < 0 for clause in clause_list for lit in clause if abs(lit) == var
-        )
+            if len(unassigned_lits) == 1:
+                unit_lit = unassigned_lits[0]
+                var = abs(unit_lit)
+                value = unit_lit > 0
+                if var in assignment and assignment[var] != value:
+                    return None, None  # Conflict
 
-        if pos and not neg:
-            pure[var] = True
-        elif neg and not pos:
-            pure[var] = False
-    for var, val in pure.items():
-        assignment[var] = val
+                if var not in assignment:
+                    assignment[var] = value
+                    changed = True
+            else:
+                new_clauses.append(unassigned_lits)
+        clauses = new_clauses
 
-    # Remove satisfied clauses and update clause_list
-    new_clauses = []
-    for clause in clause_list:
+    literals = {lit for clause in clauses for lit in clause}
+    pure_literals = {lit for lit in literals if -lit not in literals}
+    for literal in pure_literals:
+        clauses = [clause for clause in clauses if literal not in clause]
+        assignment[abs(literal)] = literal > 0
+
+    return clauses, assignment
+
+
+def forward_check(clauses: list[list[int]], assignment: dict[int, bool]):
+    for clause in clauses:
+        all_assigned = True
         clause_satisfied = False
-        new_clause = []
         for lit in clause:
             var = abs(lit)
-            if assignment[var] is not None:
+            if var not in assignment:
+                all_assigned = False
+            else:
                 if (lit > 0 and assignment[var]) or (lit < 0 and not assignment[var]):
                     clause_satisfied = True
                     break
-            else:
-                new_clause.append(lit)
-        if not clause_satisfied:
-            new_clauses.append(new_clause)
-    clause_list = new_clauses
+        if all_assigned and not clause_satisfied:
+            return False
+    return True
 
-    # Check for empty clause (unsatisfiable)
-    if any(len(clause) == 0 for clause in clause_list):
-        return None
 
-    # Heuristic: Variables in remaining clauses sorted by frequency
-    freq = {var: 0 for var in variables if assignment[var] is None}
-    for clause in clause_list:
-        for lit in clause:
-            var = abs(lit)
-            if var in freq:
-                freq[var] += 1
-    remaining_vars = sorted(freq.keys(), key=lambda x: (-freq[x], x))
+def solve_with_backtracking(grid: Grid):
+    cnf, edge_vars, islands, _ = encode_hashi(grid, use_pysat=True)
+    if not islands or not cnf.clauses:
+        return [], []
 
-    def unit_propagate(assignment):
-        new_assignments = []
-        while True:
-            unit_found = False
-            for clause in clause_list:
-                if not clause:
-                    return False  # Empty clause found
-                unassigned = []
-                clause_satisfied = False
-                for lit in clause:
-                    var = abs(lit)
-                    val = assignment[var]
-                    if val is not None:
-                        if (lit > 0 and val) or (lit < 0 and not val):
-                            clause_satisfied = True
-                            break
-                    else:
-                        unassigned.append(lit)
-                if clause_satisfied:
-                    continue
-                if len(unassigned) == 0:
-                    return False  # Conflict
-                if len(unassigned) == 1:
-                    lit = unassigned[0]
-                    var = abs(lit)
-                    required = lit > 0
-                    if assignment[var] is None:
-                        assignment[var] = required
-                        new_assignments.append(var)
-                        unit_found = True
-                    elif assignment[var] != required:
-                        return False  # Conflict
-            if not unit_found:
-                break
-        return new_assignments
+    variables: list[int] = sorted(
+        set(abs(lit) for clause in cnf.clauses for lit in clause)
+    )
+    var_count = Counter(abs(lit) for clause in cnf.clauses for lit in clause)
+    variables.sort(key=lambda v: -var_count[v])
 
-    def backtrack(index):
-        if index >= len(remaining_vars):
-            return {k: v for k, v in assignment.items() if v is not None}
+    def backtrack(
+        index: int,
+        assignment: dict[int, bool] | None,
+        clauses: list[list[int]] | None,
+        learned_clauses: list[list[int]],
+    ) -> dict[int, bool]:
+        clauses, assignment = unit_propagate(clauses or [], assignment or {})
 
-        var = remaining_vars[index]
-        if assignment[var] is not None:
-            return backtrack(index + 1)
+        if clauses is None or assignment is None:
+            return {}
+
+        if not forward_check(clauses, assignment):
+            return {}
+
+        if index == len(variables):
+            return assignment
+
+        var = variables[index]
+        if var in assignment:
+            return backtrack(index + 1, assignment, clauses, learned_clauses)
 
         for value in [True, False]:
-            original_assignment = assignment.copy()
-            assignment[var] = value
-            new_assignments = unit_propagate(assignment.copy())
-            if new_assignments is False:
-                assignment.update(original_assignment)
-                continue
-
-            result = backtrack(index + 1)
-            if result is not None:
+            new_assignment = assignment.copy()
+            new_assignment[var] = value
+            result = backtrack(
+                index + 1, new_assignment, clauses[:], learned_clauses[:]
+            )
+            if result:
                 return result
-            # Undo assignments
-            assignment.update(original_assignment)
 
-        return None
+            # CDCL: Learn a new clause from the conflict.
+            conflict_clause: list[int] = []
+            for lit in clauses:
+                for variable in lit:
+                    if abs(variable) in new_assignment:
+                        if (variable > 0 and not new_assignment[abs(variable)]) or (
+                            variable < 0 and new_assignment[abs(variable)]
+                        ):
+                            conflict_clause.append(-variable)
+            if conflict_clause:
+                learned_clauses.append(conflict_clause)
+                clauses.append(conflict_clause)
 
-    # Check if initial assignment already caused conflict
-    if any(not len(clause) for clause in clause_list):
-        return None
+        return {}
 
-    backtrack(0)
+    try:
+        model_assignment = backtrack(0, {}, cnf.clauses[:], [])
+        if model_assignment is None:
+            print("No satisfying assignment found.")
+            return ""
 
-    model = [k for k, v in assignment.items() if v]
-    if not model:
-        print("> unsolvable.")
+        model = [var if model_assignment.get(var, False) else -var for var in variables]
+
+        if validate_solution(islands, edge_vars, model):
+            sol = extract_solution(model, edge_vars)
+            if check_hashi(islands, sol):
+                return generate_output(grid, islands, sol)
+
+            # print("[warning] - Extracted solution failed final check_hashi.")
+        else:
+            # print("Validation of the assignment failed.")
+            pass
+    except KeyboardInterrupt:
+        print("\n> terminating...")
+        return ""
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")
+        print(traceback.format_exc())
         return ""
 
     return ""

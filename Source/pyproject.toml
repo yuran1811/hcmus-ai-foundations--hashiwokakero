@@ -18,6 +18,11 @@ dependencies = ["python-sat[pblib]>=1.8.dev16"]
 "main" = "hashiwokakero:main"
 
 
+[dependency-groups]
+dev = ["matplotlib>=3.10.1", "pyqt6>=6.8.1", "pytest>=8.3.5"]
+lint = ["ruff>=0.11.2"]
+
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -25,14 +30,10 @@ build-backend = "hatchling.build"
 
 [tool.ruff.lint]
 extend-select = ["W", "E"]
+ignore = ["E501"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hashiwokakero"]
-
-
-[dependency-groups]
-dev = ["pytest>=8.3.5"]
-lint = ["ruff>=0.11.2"]

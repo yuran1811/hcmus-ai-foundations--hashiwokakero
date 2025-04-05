@@ -15,22 +15,16 @@ uv sync
 or
 
 ```bash
-pip install -r requirements.txt
+uv add -r requirements.txt
 ```
 
-**Running the Project**
-
-```bash
-uv run dev
-```
-
-**Testing**
+**Unit Testing**
 
 ```bash
 uv run pytest
 ```
 
-**Run project**
+**Run Solver**
 
 ```bash
 usage: hashiwokakero [-h] [-v] [-a {pysat,astar,backtrack,brute}] [-i INPUT]
@@ -47,7 +41,32 @@ options:
 ```
 
 ```bash
-uv run main -a pysat -i "./data/input/7x7/input-01.txt"
+uv run main -a pysat -i "./data/input/20x20/input-04.txt"
+# or
+uv run main -a astar -i "./data/input/13x13/input-05.txt"
+```
+
+**Run Benchmark**
+
+```bash
+usage: hashiwokakero [-h] [-m] [-e]
+
+HCMUS AI Foundations -- Hashiwokakero Project
+
+options:
+  -h, --help     show this help message and exit
+  -m, --metrics  Export metrics images
+  -e, --export   Export result to output
+```
+
+```bash
+uv run src/benchmark.py
+```
+
+or
+
+```bash
+uv run src/benchmark.py -e -m
 ```
 
 **Lint**
