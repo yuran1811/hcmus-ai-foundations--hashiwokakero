@@ -24,9 +24,9 @@ from utils import (
 
 TEST_SETS = [3, 5, 7, 9, 11, 13, 17, 20]
 SOLVERS: list[tuple[str, Callable, list[int], bool]] = [
-    ("pysat", solve_with_pysat, TEST_SETS, True),
+    ("pysat", solve_with_pysat, TEST_SETS[:], True),
     ("astar", solve_with_astar, TEST_SETS[:6], False),
-    ("backtracking", solve_with_backtracking, TEST_SETS[:6], False),
+    ("backtracking", solve_with_backtracking, TEST_SETS[:], False),
     ("bruteforce", solve_with_bruteforce, TEST_SETS[:0], False),
 ]
 SOLVER_COUNT = len(SOLVERS)
