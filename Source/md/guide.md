@@ -11,12 +11,14 @@
 ```bash
 uv sync
 ```
+
 or
+
 ```bash
 uv add -r requirements.txt
 ```
 
-**Testing**
+**Unit Testing**
 
 ```bash
 uv run pytest
@@ -47,7 +49,24 @@ uv run main -a astar -i "./data/input/13x13/input-05.txt"
 **Run Benchmark**
 
 ```bash
+usage: hashiwokakero [-h] [-m] [-e]
+
+HCMUS AI Foundations -- Hashiwokakero Project
+
+options:
+  -h, --help     show this help message and exit
+  -m, --metrics  Export metrics images
+  -e, --export   Export result to output
+```
+
+```bash
 uv run src/benchmark.py
+```
+
+or
+
+```bash
+uv run src/benchmark.py -e -m
 ```
 
 **Lint**
