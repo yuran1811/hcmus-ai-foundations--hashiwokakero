@@ -1,2 +1,2 @@
 - [Guide](./md/guide.md)
-- [Todo](./md/todo.md)
+- [Project Info](../README.md)
